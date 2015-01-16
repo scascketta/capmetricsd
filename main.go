@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -9,7 +8,10 @@ import (
 	"google.golang.org/cloud/datastore"
 	"io/ioutil"
 	"log"
+	"os"
 )
+
+var errlogger *log.Logger = log.New(os.Stderr, "[ERR] ", log.LstdFlags|log.Lshortfile)
 
 func AuthGCD() (context.Context, error) {
 	jsonKey, err := ioutil.ReadFile("keyfile.json")
@@ -43,15 +45,12 @@ func main() {
 		log.Fatal("Error fetching vehicles:", err)
 	}
 
-	v, err := ParseVehiclesResponse(b)
+	vehicles, err := ParseVehiclesResponse(b)
 	if err != nil {
 		log.Fatal("Error parsing vehicles:", err)
 	}
-	for _, v := range v.Vehicles {
-		log.Printf("Vehicle %s updated at %s, moving %s on route %s.\n", v.VehicleID, v.Time, v.Direction, v.Route)
-		log.Printf("\tPositions:\n")
-		for _, p := range v.Positions {
-			fmt.Printf("%s\n", p)
-		}
+
+	for _, v := range vehicles {
+		log.Printf("Vehicle %s was at %f, %f. at %s.", v.VehicleID, v.Latitude, v.Longitude, v.Time.String())
 	}
 }
