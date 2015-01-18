@@ -19,10 +19,10 @@ func FetchVehicles(routeID string) ([]byte, error) {
 
 type VehiclePosition struct {
 	VehicleID string
-	Direction string    // N/S
+	Direction string    `datastore:",noindex"` // N/S
 	Time      time.Time // should be time position data was logged
-	Speed     float64   // instantaneous speed
-	Heading   int64     // heading in degrees
+	Speed     float64   `datastore:",noindex"` // instantaneous speed
+	Heading   int64     `datastore:",noindex"` // heading in degrees
 	Route     string    // 80X
 	RouteID   string    // route id for machines
 	TripID    string    // trip id for machines

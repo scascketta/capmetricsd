@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"time"
 )
 
 var errlogger *log.Logger = log.New(os.Stderr, "[ERR] ", log.LstdFlags|log.Lshortfile)
@@ -33,24 +34,39 @@ func AuthGCD() (context.Context, error) {
 	return ctx, nil
 }
 
-func main() {
-	_, err := AuthGCD()
+func LogVehiclePositions(ctx context.Context, route string) error {
+	b, err := FetchVehicles(route)
 	if err != nil {
-		log.Fatal(err)
-	}
-	log.Println("auth works")
-
-	b, err := FetchVehicles("803")
-	if err != nil {
-		log.Fatal("Error fetching vehicles:", err)
+		return err
 	}
 
 	vehicles, err := ParseVehiclesResponse(b)
 	if err != nil {
-		log.Fatal("Error parsing vehicles:", err)
+		return err
 	}
 
 	for _, v := range vehicles {
 		log.Printf("Vehicle %s was at %f, %f. at %s.", v.VehicleID, v.Latitude, v.Longitude, v.Time.String())
+		k := datastore.NewIncompleteKey(ctx, "VehiclePosition", nil)
+		_, err := datastore.Put(ctx, k, &v)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func main() {
+	ctx, err := AuthGCD()
+	if err != nil {
+		errlogger.Fatal(err)
+	}
+	for {
+		err = LogVehiclePositions(ctx, "803")
+		if err != nil {
+			errlogger.Println(err)
+		}
+		err = LogVehiclePositions(ctx, "801")
+		time.Sleep(90 * (time.Millisecond * 1000))
 	}
 }
