@@ -1,7 +1,7 @@
 package main
 
 import (
-	r "github.com/dancannon/gorethink"
+	r "github.com/scascketta/capmetro-log/Godeps/_workspace/src/github.com/dancannon/gorethink"
 	"log"
 	"os"
 	"time"
@@ -37,6 +37,7 @@ func LogVehiclePositions(route string, session *r.Session) {
 			errlogger.Println(err)
 		}
 	}
+	log.Printf("Log %d vehicles on route %s.\n", len(vehicles), route)
 }
 
 func main() {
@@ -49,6 +50,8 @@ func main() {
 		LogVehiclePositions("803", session)
 		go LogVehiclePositions("801", session)
 
+		log.Println("Sleeping...")
 		time.Sleep(90 * (1000 * time.Millisecond))
+		log.Println("Wake up!")
 	}
 }
