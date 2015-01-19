@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/xml"
+	r "github.com/dancannon/gorethink"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -18,16 +19,15 @@ func FetchVehicles(routeID string) ([]byte, error) {
 }
 
 type VehiclePosition struct {
-	VehicleID string
-	Direction string    `datastore:",noindex"` // N/S
-	Time      time.Time // should be time position data was logged
-	Speed     float64   `datastore:",noindex"` // instantaneous speed
-	Heading   int64     `datastore:",noindex"` // heading in degrees
-	Route     string    // 80X
-	RouteID   string    // route id for machines
-	TripID    string    // trip id for machines
-	Latitude  float64
-	Longitude float64
+	VehicleID string    `gorethink:"vehicle_id"`
+	Direction string    `gorethink:"direction"` // N/S
+	Time      time.Time `gorethink:"timestamp"` // should be time position data was logged
+	Speed     float64   `gorethink:"speed"`     // instantaneous speed
+	Heading   int64     `gorethink:"heading"`   // heading in degrees
+	Route     string    `gorethink:"route"`     // 80X
+	RouteID   string    `gorethink:"route_id"`  // route id for machines
+	TripID    string    `gorethink:"trip_id"`   // trip id for machines
+	Location  r.Term    `gorethink:"location"`
 }
 
 type xmlVehicle struct {
@@ -74,8 +74,7 @@ func ParseVehiclesResponse(b []byte) ([]VehiclePosition, error) {
 			Time:      updateTime,
 			Speed:     v.Speed,
 			Heading:   heading,
-			Latitude:  lat,
-			Longitude: long,
+			Location:  r.Point(long, lat),
 		}
 		vehicles = append(vehicles, vp)
 	}
