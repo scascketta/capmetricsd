@@ -6,10 +6,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/scascketta/capmetro-log/Godeps/_workspace/src/github.com/dancannon/gorethink/encoding"
+	"bitbucket.org/scascketta/capmetro-log/Godeps/_workspace/src/github.com/dancannon/gorethink/encoding"
 
-	"github.com/scascketta/capmetro-log/Godeps/_workspace/src/code.google.com/p/goprotobuf/proto"
-	p "github.com/scascketta/capmetro-log/Godeps/_workspace/src/github.com/dancannon/gorethink/ql2"
+	"code.google.com/p/goprotobuf/proto"
+	p "bitbucket.org/scascketta/capmetro-log/Godeps/_workspace/src/github.com/dancannon/gorethink/ql2"
 )
 
 // Helper functions for constructing terms

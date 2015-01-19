@@ -5,9 +5,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/scascketta/capmetro-log/Godeps/_workspace/src/gopkg.in/fatih/pool.v2"
+	"gopkg.in/fatih/pool.v2"
 
-	p "github.com/scascketta/capmetro-log/Godeps/_workspace/src/github.com/dancannon/gorethink/ql2"
+	p "bitbucket.org/scascketta/capmetro-log/Godeps/_workspace/src/github.com/dancannon/gorethink/ql2"
 )
 
 type Query struct {

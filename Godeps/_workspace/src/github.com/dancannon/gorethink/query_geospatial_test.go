@@ -1,7 +1,7 @@
 package gorethink
 
 import (
-	"github.com/scascketta/capmetro-log/Godeps/_workspace/src/github.com/dancannon/gorethink/types"
+	"bitbucket.org/scascketta/capmetro-log/Godeps/_workspace/src/github.com/dancannon/gorethink/types"
 
 	test "gopkg.in/check.v1"
 )

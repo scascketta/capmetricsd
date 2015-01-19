@@ -2,7 +2,7 @@ package main
 
 import (
 	"encoding/xml"
-	r "github.com/scascketta/capmetro-log/Godeps/_workspace/src/github.com/dancannon/gorethink"
+	r "bitbucket.org/scascketta/capmetro-log/Godeps/_workspace/src/github.com/dancannon/gorethink"
 	"io/ioutil"
 	"net/http"
 	"strconv"

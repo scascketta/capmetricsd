@@ -19,7 +19,7 @@ It has these top-level messages:
 */
 package ql2
 
-import proto "github.com/scascketta/capmetro-log/Godeps/_workspace/src/code.google.com/p/goprotobuf/proto"
+import proto "code.google.com/p/goprotobuf/proto"
 import math "math"
 
 // Reference imports to suppress errors if they are not otherwise used.

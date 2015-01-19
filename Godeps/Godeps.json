@@ -1,20 +1,11 @@
 {
-	"ImportPath": "github.com/scascketta/capmetro-log",
+	"ImportPath": "bitbucket.org/scascketta/capmetro-log",
 	"GoVersion": "go1.4",
 	"Deps": [
-		{
-			"ImportPath": "code.google.com/p/goprotobuf/proto",
-			"Comment": "go.r60-152",
-			"Rev": "36be16571e14f67e114bb0af619e5de2c1591679"
-		},
 		{
 			"ImportPath": "github.com/dancannon/gorethink",
 			"Comment": "v0.5.x",
 			"Rev": "e590ff2fbe7286788da60f90e6b2bfced91dca66"
-		},
-		{
-			"ImportPath": "gopkg.in/fatih/pool.v2",
-			"Rev": "dae43b8a8a190d1f2b5908e2f6dd02481e7d59e9"
 		}
 	]
 }
