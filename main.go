@@ -15,13 +15,26 @@ var (
 	connOpts  r.ConnectOpts = r.ConnectOpts{Address: "localhost:28015", Database: DB_NAME}
 	routes    []string      = []string{"803", "801", "550"}
 
-	lastUpdated map[string]time.Time = map[string]time.Time{}
+	sleepDuration time.Duration        = 30 * (1000 * time.Millisecond)
+	lastUpdated   map[string]time.Time = map[string]time.Time{}
 )
 
 func init() {
 	if len(os.Getenv("DB_NAME")) == 0 {
 		errlogger.Fatal("Missing envvar DB_NAME")
 	}
+}
+
+func FilterUpdatedVehicles(vehicles []VehiclePosition) []VehiclePosition {
+	updated := []VehiclePosition{}
+	for _, v := range vehicles {
+		updateTime, _ := lastUpdated[v.VehicleID]
+		lastUpdated[v.VehicleID] = v.Time
+		if !updateTime.Equal(v.Time) {
+			updated = append(updated, v)
+		}
+	}
+	return updated
 }
 
 func LogVehiclePositions(session *r.Session, route string) {
@@ -34,14 +47,7 @@ func LogVehiclePositions(session *r.Session, route string) {
 		errlogger.Println(err)
 	}
 
-	updated := []VehiclePosition{}
-	for _, v := range vehicles {
-		updateTime, _ := lastUpdated[v.VehicleID]
-		lastUpdated[v.VehicleID] = v.Time
-		if !updateTime.Equal(v.Time) {
-			updated = append(updated, v)
-		}
-	}
+	updated := FilterUpdatedVehicles(vehicles)
 
 	if len(updated) > 0 {
 		_, err = r.Table("vehicle_position").Insert(r.Expr(updated)).Run(session)
@@ -74,7 +80,7 @@ func main() {
 		wg.Wait()
 
 		log.Println("Sleeping...")
-		time.Sleep(15 * (1000 * time.Millisecond))
+		time.Sleep(sleepDuration)
 		log.Println("Wake up!")
 	}
 }
