@@ -11,9 +11,18 @@ import (
 var (
 	errlogger *log.Logger = log.New(os.Stderr, "[ERR] ", log.LstdFlags|log.Lshortfile)
 	session   *r.Session
-	connOpts  r.ConnectOpts = r.ConnectOpts{Address: "localhost:28015", Database: "test"}
+	DB_NAME   string        = os.Getenv("DB_NAME")
+	connOpts  r.ConnectOpts = r.ConnectOpts{Address: "localhost:28015", Database: DB_NAME}
 	routes    []string      = []string{"803", "801", "550"}
+
+	lastUpdated map[string]time.Time = map[string]time.Time{}
 )
+
+func init() {
+	if len(os.Getenv("DB_NAME")) == 0 {
+		errlogger.Fatal("Missing envvar DB_NAME")
+	}
+}
 
 func LogVehiclePositions(session *r.Session, route string) {
 	b, err := FetchVehicles(route)
@@ -25,11 +34,24 @@ func LogVehiclePositions(session *r.Session, route string) {
 		errlogger.Println(err)
 	}
 
-	_, err = r.Table("vehicle_position").Insert(r.Expr(vehicles)).Run(session)
-	if err != nil {
-		errlogger.Println(err)
+	updated := []VehiclePosition{}
+	for _, v := range vehicles {
+		updateTime, _ := lastUpdated[v.VehicleID]
+		lastUpdated[v.VehicleID] = v.Time
+		if !updateTime.Equal(v.Time) {
+			updated = append(updated, v)
+		}
 	}
-	log.Printf("Log %d vehicles, route %s.\n", len(vehicles), route)
+
+	if len(updated) > 0 {
+		_, err = r.Table("vehicle_position").Insert(r.Expr(updated)).Run(session)
+		if err != nil {
+			errlogger.Println(err)
+		}
+		log.Printf("Log %d vehicles, route %s.\n", len(updated), route)
+	} else {
+		log.Printf("No new vehicle positions to record for route %s.\n", route)
+	}
 }
 
 func main() {
@@ -52,7 +74,7 @@ func main() {
 		wg.Wait()
 
 		log.Println("Sleeping...")
-		time.Sleep(90 * (1000 * time.Millisecond))
+		time.Sleep(15 * (1000 * time.Millisecond))
 		log.Println("Wake up!")
 	}
 }
