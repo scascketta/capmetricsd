@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	r "bitbucket.org/scascketta/capmetro-log/Godeps/_workspace/src/github.com/dancannon/gorethink"
+	r "github.com/scascketta/capmetro-log/Godeps/_workspace/src/github.com/dancannon/gorethink"
 )
 
 var session *r.Session

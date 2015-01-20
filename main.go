@@ -1,9 +1,10 @@
 package main
 
 import (
-	r "bitbucket.org/scascketta/capmetro-log/Godeps/_workspace/src/github.com/dancannon/gorethink"
+	r "github.com/scascketta/capmetro-log/Godeps/_workspace/src/github.com/dancannon/gorethink"
 	"log"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -11,6 +12,7 @@ var (
 	errlogger *log.Logger = log.New(os.Stderr, "[ERR] ", log.LstdFlags|log.Lshortfile)
 	session   *r.Session
 	connOpts  r.ConnectOpts
+	routes    []string = []string{"803", "801", "550"}
 )
 
 func init() {
@@ -20,12 +22,11 @@ func init() {
 	}
 }
 
-func LogVehiclePositions(route string, session *r.Session) {
+func LogVehiclePositions(session *r.Session, route string) {
 	b, err := FetchVehicles(route)
 	if err != nil {
 		errlogger.Println(err)
 	}
-
 	vehicles, err := ParseVehiclesResponse(b)
 	if err != nil {
 		errlogger.Println(err)
@@ -46,9 +47,17 @@ func main() {
 		errlogger.Fatal(err)
 	}
 
+	var wg sync.WaitGroup
+
 	for {
-		LogVehiclePositions("803", session)
-		go LogVehiclePositions("801", session)
+		for _, route := range routes {
+			wg.Add(1)
+			go func(session *r.Session, route string) {
+				LogVehiclePositions(session, route)
+				wg.Done()
+			}(session, route)
+		}
+		wg.Wait()
 
 		log.Println("Sleeping...")
 		time.Sleep(90 * (1000 * time.Millisecond))

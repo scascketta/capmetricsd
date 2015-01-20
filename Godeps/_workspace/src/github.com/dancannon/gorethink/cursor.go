@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"sync"
 
-	"bitbucket.org/scascketta/capmetro-log/Godeps/_workspace/src/github.com/dancannon/gorethink/encoding"
-	p "bitbucket.org/scascketta/capmetro-log/Godeps/_workspace/src/github.com/dancannon/gorethink/ql2"
+	"github.com/scascketta/capmetro-log/Godeps/_workspace/src/github.com/dancannon/gorethink/encoding"
+	p "github.com/scascketta/capmetro-log/Godeps/_workspace/src/github.com/dancannon/gorethink/ql2"
 )
 
 // Cursors are used to represent data returned from the database.
