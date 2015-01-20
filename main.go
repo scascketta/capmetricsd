@@ -11,16 +11,9 @@ import (
 var (
 	errlogger *log.Logger = log.New(os.Stderr, "[ERR] ", log.LstdFlags|log.Lshortfile)
 	session   *r.Session
-	connOpts  r.ConnectOpts
-	routes    []string = []string{"803", "801", "550"}
+	connOpts  r.ConnectOpts = r.ConnectOpts{Address: "localhost:28015", Database: "test"}
+	routes    []string      = []string{"803", "801", "550"}
 )
-
-func init() {
-	connOpts = r.ConnectOpts{
-		Address:  "localhost:28015",
-		Database: "capmuerto",
-	}
-}
 
 func LogVehiclePositions(session *r.Session, route string) {
 	b, err := FetchVehicles(route)
@@ -32,13 +25,11 @@ func LogVehiclePositions(session *r.Session, route string) {
 		errlogger.Println(err)
 	}
 
-	for _, v := range vehicles {
-		_, err = r.Table("vehicle_position").Insert(r.Expr(v)).Run(session)
-		if err != nil {
-			errlogger.Println(err)
-		}
+	_, err = r.Table("vehicle_position").Insert(r.Expr(vehicles)).Run(session)
+	if err != nil {
+		errlogger.Println(err)
 	}
-	log.Printf("Log %d vehicles on route %s.\n", len(vehicles), route)
+	log.Printf("Log %d vehicles, route %s.\n", len(vehicles), route)
 }
 
 func main() {
@@ -46,6 +37,7 @@ func main() {
 	if err != nil {
 		errlogger.Fatal(err)
 	}
+	log.Printf("Established connection to RethinkDB server at %s.\n", connOpts.Address)
 
 	var wg sync.WaitGroup
 
