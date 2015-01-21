@@ -15,8 +15,10 @@ var (
 	connOpts  r.ConnectOpts = r.ConnectOpts{Address: "localhost:28015", Database: DB_NAME}
 	routes    []string      = []string{"803", "801", "550"}
 
-	sleepDuration time.Duration        = 30 * (1000 * time.Millisecond)
-	lastUpdated   map[string]time.Time = map[string]time.Time{}
+	normalDuration   time.Duration        = 30 * (1000 * time.Millisecond)
+	extendedDuration time.Duration        = (10 * 60) * (1000 * time.Millisecond)
+	lastUpdated      map[string]time.Time = map[string]time.Time{}
+	sleepHistory     map[string][]bool    = map[string][]bool{}
 )
 
 func init() {
@@ -41,10 +43,17 @@ func LogVehiclePositions(session *r.Session, route string) {
 	b, err := FetchVehicles(route)
 	if err != nil {
 		errlogger.Println(err)
+		return
 	}
+
 	vehicles, err := ParseVehiclesResponse(b)
 	if err != nil {
 		errlogger.Println(err)
+		return
+	}
+	if vehicles == nil {
+		sleepHistory[route] = append(sleepHistory[route], true)
+		return
 	}
 
 	updated := FilterUpdatedVehicles(vehicles)
@@ -53,11 +62,27 @@ func LogVehiclePositions(session *r.Session, route string) {
 		_, err = r.Table("vehicle_position").Insert(r.Expr(updated)).Run(session)
 		if err != nil {
 			errlogger.Println(err)
+			return
 		}
 		log.Printf("Log %d vehicles, route %s.\n", len(updated), route)
 	} else {
 		log.Printf("No new vehicle positions to record for route %s.\n", route)
 	}
+}
+
+// Check if sleepHistory has 3 previous fetches, and each fetch is false
+func routesAreSleeping() bool {
+	for _, b := range sleepHistory {
+		if len(b) < 3 {
+			return false
+		}
+		for _, v := range b {
+			if v == false {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func main() {
@@ -79,8 +104,19 @@ func main() {
 		}
 		wg.Wait()
 
-		log.Println("Sleeping...")
-		time.Sleep(sleepDuration)
+		var duration time.Duration
+		if routesAreSleeping() {
+			for k, _ := range sleepHistory {
+				sleepHistory[k] = []bool{}
+			}
+			log.Println("Sleeping for extended duration!")
+			duration = extendedDuration
+		} else {
+			log.Println("Sleeping for normal duration!")
+			duration = normalDuration
+		}
+
+		time.Sleep(duration)
 		log.Println("Wake up!")
 	}
 }
