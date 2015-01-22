@@ -70,7 +70,9 @@ func LogVehiclePositions(session *r.Session, route string) {
 	}
 }
 
-// Check if sleepHistory has 3 previous fetches, and each fetch is false
+// Check if the the routes are inactive
+// There must have been three previous attempts to fetch data,
+// and all attempts must have failed
 func routesAreSleeping() bool {
 	for _, b := range sleepHistory {
 		if len(b) < 3 {
@@ -86,6 +88,10 @@ func routesAreSleeping() bool {
 }
 
 func main() {
+	for _, route := range routes {
+		sleepHistory[route] = []bool{}
+	}
+
 	session, err := r.Connect(connOpts)
 	if err != nil {
 		errlogger.Fatal(err)
