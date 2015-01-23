@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+const MAX_RETRIES int = 5
+
 var (
 	errlogger *log.Logger = log.New(os.Stderr, "[ERR] ", log.LstdFlags|log.Lshortfile)
 	session   *r.Session
@@ -15,10 +17,10 @@ var (
 	connOpts  r.ConnectOpts = r.ConnectOpts{Address: "localhost:28015", Database: DB_NAME}
 	routes    []string      = []string{"803", "801", "550"}
 
+	lastUpdated      map[string]time.Time = map[string]time.Time{}
 	normalDuration   time.Duration        = 30 * (1000 * time.Millisecond)
 	extendedDuration time.Duration        = (10 * 60) * (1000 * time.Millisecond)
-	lastUpdated      map[string]time.Time = map[string]time.Time{}
-	sleepHistory     map[string][]bool    = map[string][]bool{}
+	sleepHistory     map[string]int       = map[string]int{}
 )
 
 func init() {
@@ -52,7 +54,8 @@ func LogVehiclePositions(session *r.Session, route string) {
 		return
 	}
 	if vehicles == nil {
-		sleepHistory[route] = append(sleepHistory[route], true)
+		sleepHistory[route] += 1
+		log.Println("No vehicles in response")
 		return
 	}
 
@@ -71,17 +74,12 @@ func LogVehiclePositions(session *r.Session, route string) {
 }
 
 // Check if the the routes are inactive
-// There must have been three previous attempts to fetch data,
+// There must have been MAX_RETRIES previous attempts to fetch data,
 // and all attempts must have failed
 func routesAreSleeping() bool {
-	for _, b := range sleepHistory {
-		if len(b) < 3 {
+	for _, retries := range sleepHistory {
+		if retries < MAX_RETRIES {
 			return false
-		}
-		for _, v := range b {
-			if v == false {
-				return false
-			}
 		}
 	}
 	return true
@@ -89,7 +87,7 @@ func routesAreSleeping() bool {
 
 func main() {
 	for _, route := range routes {
-		sleepHistory[route] = []bool{}
+		sleepHistory[route] = 0
 	}
 
 	session, err := r.Connect(connOpts)
@@ -101,6 +99,7 @@ func main() {
 	var wg sync.WaitGroup
 
 	for {
+
 		for _, route := range routes {
 			wg.Add(1)
 			go func(session *r.Session, route string) {
@@ -113,7 +112,7 @@ func main() {
 		var duration time.Duration
 		if routesAreSleeping() {
 			for k, _ := range sleepHistory {
-				sleepHistory[k] = []bool{}
+				sleepHistory[k] = 0
 			}
 			log.Println("Sleeping for extended duration!")
 			duration = extendedDuration
