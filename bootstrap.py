@@ -41,6 +41,9 @@ def fetch_stops(conn, routes_data):
     print 'Creating tables for stops'
 
     # fetch and clean stops data
+    r.table_create('stops').run(conn)
+
+    all_stops = []
     for route in routes_data:
         for direction in route['directions']:
             route_direction = str(route['route_id']) + '_' + str(direction['direction_id'])
@@ -59,15 +62,13 @@ def fetch_stops(conn, routes_data):
                 # too similar to location.type attr in rethinkdb
                 del stop['location_type']
 
-            stops_name = 'stops_' + route_direction
-            print 'Creating stops table:', stops_name
-            r.table_create(stops_name).run(conn)
-            r.table(stops_name).insert(stops_data).run(conn)
+            all_stops.extend(stops_data)
+
+    r.table('stops').insert(all_stops).run(conn)
 
 
 if __name__ == '__main__':
     conn = r.connect('localhost', 28015)
-    r.db_create('capmetro').run(conn)
     conn.use('capmetro')
     routes_data = fetch_routes(conn)
     fetch_stops(conn, routes_data)
