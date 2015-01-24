@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	r "github.com/scascketta/capmetro-log/Godeps/_workspace/src/github.com/dancannon/gorethink"
 	"log"
 	"os"
@@ -11,6 +12,7 @@ import (
 const MAX_RETRIES int = 5
 
 var (
+	dbglogger *log.Logger = log.New(os.Stdout, "[DBG] ", log.LstdFlags|log.Lshortfile)
 	errlogger *log.Logger = log.New(os.Stderr, "[ERR] ", log.LstdFlags|log.Lshortfile)
 	session   *r.Session
 	DB_NAME   string        = os.Getenv("DB_NAME")
@@ -41,22 +43,19 @@ func FilterUpdatedVehicles(vehicles []VehiclePosition) []VehiclePosition {
 	return updated
 }
 
-func LogVehiclePositions(session *r.Session, route string) {
+func LogVehiclePositions(session *r.Session, route string) error {
 	b, err := FetchVehicles(route)
 	if err != nil {
-		errlogger.Println(err)
-		return
+		return err
 	}
 
 	vehicles, err := ParseVehiclesResponse(b)
 	if err != nil {
-		errlogger.Println(err)
-		return
+		return err
 	}
 	if vehicles == nil {
 		sleepHistory[route] += 1
-		log.Println("No vehicles in response for route:", route)
-		return
+		return fmt.Errorf("No vehicles in response for route: %s.\n", route)
 	}
 
 	updated := FilterUpdatedVehicles(vehicles)
@@ -64,13 +63,13 @@ func LogVehiclePositions(session *r.Session, route string) {
 	if len(updated) > 0 {
 		_, err = r.Table("vehicle_position").Insert(r.Expr(updated)).Run(session)
 		if err != nil {
-			errlogger.Println(err)
-			return
+			return err
 		}
-		log.Printf("Log %d vehicles, route %s.\n", len(updated), route)
+		dbglogger.Printf("Log %d vehicles, route %s.\n", len(updated), route)
 	} else {
-		log.Printf("No new vehicle positions to record for route %s.\n", route)
+		dbglogger.Printf("No new vehicle positions to record for route %s.\n", route)
 	}
+	return nil
 }
 
 // Check if the the routes are inactive
@@ -94,7 +93,7 @@ func main() {
 	if err != nil {
 		errlogger.Fatal(err)
 	}
-	log.Printf("Established connection to RethinkDB server at %s.\n", connOpts.Address)
+	dbglogger.Printf("Established connection to RethinkDB server at %s.\n", connOpts.Address)
 
 	var wg sync.WaitGroup
 
@@ -102,7 +101,10 @@ func main() {
 		for _, route := range routes {
 			wg.Add(1)
 			go func(session *r.Session, route string) {
-				LogVehiclePositions(session, route)
+				err = LogVehiclePositions(session, route)
+				if err != nil {
+					errlogger.Println(err)
+				}
 				wg.Done()
 			}(session, route)
 		}
@@ -113,14 +115,14 @@ func main() {
 			for k, _ := range sleepHistory {
 				sleepHistory[k] = 0
 			}
-			log.Println("Sleeping for extended duration!")
+			dbglogger.Println("Sleeping for extended duration!")
 			duration = extendedDuration
 		} else {
-			log.Println("Sleeping for normal duration!")
+			dbglogger.Println("Sleeping for normal duration!")
 			duration = normalDuration
 		}
 
 		time.Sleep(duration)
-		log.Println("Wake up!")
+		dbglogger.Println("Wake up!")
 	}
 }
