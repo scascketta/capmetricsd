@@ -19,10 +19,13 @@ var (
 	connOpts  r.ConnectOpts = r.ConnectOpts{Address: "localhost:28015", Database: DB_NAME}
 	routes    []string      = []string{"803", "801", "550"}
 
-	lastUpdated      map[string]time.Time = map[string]time.Time{}
-	normalDuration   time.Duration        = 30 * (1000 * time.Millisecond)
-	extendedDuration time.Duration        = (10 * 60) * (1000 * time.Millisecond)
-	sleepHistory     map[string]int       = map[string]int{}
+	lastUpdated          map[string]time.Time = map[string]time.Time{}
+	firstNewVehicleCheck bool                 = true
+	nextNewVehicleCheck  time.Time            = time.Now()
+	vehicleCheckInterval time.Duration        = (4 * 60 * 60) * (1000 * time.Millisecond)
+	normalDuration       time.Duration        = (30) * (1000 * time.Millisecond)
+	extendedDuration     time.Duration        = (10 * 60) * (1000 * time.Millisecond)
+	sleepHistory         map[string]int       = map[string]int{}
 )
 
 func init() {
@@ -85,6 +88,7 @@ func routesAreSleeping() bool {
 }
 
 func checkNewVehicles(session *r.Session) error {
+	dbglogger.Println("Check for new vehicles.")
 	vehicles := []map[string]string{}
 	cur, err := r.Table("vehicle_position").Pluck("vehicle_id", "route", "route_id", "trip_id").Distinct().Run(session)
 	if err != nil {
@@ -146,16 +150,21 @@ func main() {
 			}(session, route)
 		}
 
-		// check for new vehicles, add new ones
+		// check for new vehicles if after next check time, add new ones
 		// (added eventually, not necessarily as soon as a new vehicle appears in vehicle_positions table)
-		wg.Add(1)
-		go func() {
-			err = checkNewVehicles(session)
-			if err != nil {
-				errlogger.Println(err)
-			}
-			wg.Done()
-		}()
+		if firstNewVehicleCheck || time.Now().After(nextNewVehicleCheck) {
+			firstNewVehicleCheck = false
+			wg.Add(1)
+			go func() {
+				err = checkNewVehicles(session)
+				if err != nil {
+					errlogger.Println(err)
+				}
+				wg.Done()
+			}()
+			nextNewVehicleCheck = time.Now().Add(vehicleCheckInterval)
+			dbglogger.Println("Next check for new vehicles scheduled at:", nextNewVehicleCheck)
+		}
 		wg.Wait()
 
 		// determine how long to sleep
