@@ -84,6 +84,42 @@ func routesAreSleeping() bool {
 	return true
 }
 
+func checkNewVehicles(session *r.Session) error {
+	vehicles := []map[string]string{}
+	cur, err := r.Table("vehicle_position").Pluck("vehicle_id", "route", "route_id", "trip_id").Distinct().Run(session)
+	if err != nil {
+		return err
+	}
+	cur.All(&vehicles)
+	for _, data := range vehicles {
+		id := data["vehicle_id"]
+		stream := r.Table("vehicles").Pluck("vehicle_id")
+		query_expr := r.Expr(map[string]string{"vehicle_id": data["vehicle_id"]})
+		cur, err = stream.Contains(query_expr).Run(session)
+		if err != nil {
+			return err
+		}
+		var res bool
+
+		cur.Next(&res)
+		if !res {
+			dbglogger.Printf("Adding new vehicle %s to vehicles table.\n", id)
+			vehicle := Vehicle{
+				VehicleID:    data["vehicle_id"],
+				Route:        data["route"],
+				RouteID:      data["route_id"],
+				TripID:       data["trip_id"],
+				LastAnalyzed: time.Now(),
+			}
+			_, err := r.Table("vehicles").Insert(r.Expr(vehicle)).Run(session)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func main() {
 	for _, route := range routes {
 		sleepHistory[route] = 0
@@ -98,6 +134,7 @@ func main() {
 	var wg sync.WaitGroup
 
 	for {
+		// log new vehicle positions
 		for _, route := range routes {
 			wg.Add(1)
 			go func(session *r.Session, route string) {
@@ -108,8 +145,21 @@ func main() {
 				wg.Done()
 			}(session, route)
 		}
+
+		// check for new vehicles, add new ones
+		// (added eventually, not necessarily as soon as a new vehicle appears in vehicle_positions table)
+		wg.Add(1)
+		go func() {
+			err = checkNewVehicles(session)
+			if err != nil {
+				errlogger.Println(err)
+			}
+			wg.Done()
+		}()
 		wg.Wait()
 
+		// determine how long to sleep
+		// if no vehicles were received from capmetro MAX_RETRIES in a row, sleep longer
 		var duration time.Duration
 		if routesAreSleeping() {
 			for k, _ := range sleepHistory {

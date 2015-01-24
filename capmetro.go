@@ -18,6 +18,14 @@ func FetchVehicles(routeID string) ([]byte, error) {
 	return ioutil.ReadAll(res.Body)
 }
 
+type Vehicle struct {
+	VehicleID    string    `gorethink:"vehicle_id"`
+	Route        string    `gorethink:"route"`         // 80X
+	RouteID      string    `gorethink:"route_id"`      // route id for machines
+	TripID       string    `gorethink:"trip_id"`       // trip id for machines
+	LastAnalyzed time.Time `gorethink:"last_analyzed"` // last time vehicle was analyzed for stop times
+}
+
 type VehiclePosition struct {
 	VehicleID string    `gorethink:"vehicle_id"`
 	Direction string    `gorethink:"direction"` // N/S
