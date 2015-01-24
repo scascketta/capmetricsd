@@ -55,7 +55,7 @@ func LogVehiclePositions(session *r.Session, route string) {
 	}
 	if vehicles == nil {
 		sleepHistory[route] += 1
-		log.Println("No vehicles in response")
+		log.Println("No vehicles in response for route:", route)
 		return
 	}
 
@@ -99,7 +99,6 @@ func main() {
 	var wg sync.WaitGroup
 
 	for {
-
 		for _, route := range routes {
 			wg.Add(1)
 			go func(session *r.Session, route string) {
