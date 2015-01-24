@@ -13,7 +13,7 @@ var (
 	vehicleCheckInterval time.Duration        = (4 * 60 * 60) * (1000 * time.Millisecond)
 	normalDuration       time.Duration        = (30) * (1000 * time.Millisecond)
 	extendedDuration     time.Duration        = (10 * 60) * (1000 * time.Millisecond)
-	sleepHistory         map[string]int       = map[string]int{}
+	fetchHistory         map[string]int       = map[string]int{}
 )
 
 func FilterUpdatedVehicles(vehicles []VehiclePosition) []VehiclePosition {
@@ -29,17 +29,12 @@ func FilterUpdatedVehicles(vehicles []VehiclePosition) []VehiclePosition {
 }
 
 func LogVehiclePositions(session *r.Session, route string) error {
-	b, err := FetchVehicles(route)
-	if err != nil {
-		return err
-	}
-
-	vehicles, err := ParseVehiclesResponse(b)
+	vehicles, err := FetchVehicles(route)
 	if err != nil {
 		return err
 	}
 	if vehicles == nil {
-		sleepHistory[route] += 1
+		fetchHistory[route] += 1
 		return fmt.Errorf("No vehicles in response for route: %s.", route)
 	}
 
@@ -61,7 +56,8 @@ func LogVehiclePositions(session *r.Session, route string) error {
 // There must have been MAX_RETRIES previous attempts to fetch data,
 // and all attempts must have failed
 func routesAreSleeping() bool {
-	for _, retries := range sleepHistory {
+	dbglogger.Println("fetchHistory:", fetchHistory)
+	for _, retries := range fetchHistory {
 		if retries < MAX_RETRIES {
 			return false
 		}

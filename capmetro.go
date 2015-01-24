@@ -10,14 +10,6 @@ import (
 	"time"
 )
 
-func FetchVehicles(routeID string) ([]byte, error) {
-	res, err := http.Get("http://www.capmetro.org/planner/s_buslocation.asp?route=" + routeID)
-	if err != nil {
-		return nil, err
-	}
-	return ioutil.ReadAll(res.Body)
-}
-
 type Vehicle struct {
 	VehicleID    string    `gorethink:"vehicle_id"`
 	Route        string    `gorethink:"route"`         // 80X
@@ -55,9 +47,15 @@ type VehicleData struct {
 	Vehicles []xmlVehicle `xml:"Body>BuslocationResponse>Vehicles>Vehicle"`
 }
 
-func ParseVehiclesResponse(b []byte) ([]VehiclePosition, error) {
+func FetchVehicles(route string) ([]VehiclePosition, error) {
+	res, err := http.Get("http://www.capmetro.org/planner/s_buslocation.asp?route=" + route)
+	if err != nil {
+		return nil, err
+	}
+	b, _ := ioutil.ReadAll(res.Body)
+
 	var data VehicleData
-	err := xml.Unmarshal(b, &data)
+	err = xml.Unmarshal(b, &data)
 	if err != nil {
 		errlogger.Println(err)
 	}
