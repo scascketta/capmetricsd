@@ -28,7 +28,8 @@ func init() {
 func main() {
 	// initialize current fetch retries to 0
 	for _, route := range routes {
-		fetchHistory[route] = 0
+		emptyResponses[route] = 1
+		recentEmptyResponse[route] = false
 	}
 
 	session, err := r.Connect(connOpts)
@@ -73,8 +74,8 @@ func main() {
 		// if no vehicles were received from capmetro MAX_RETRIES in a row, sleep longer
 		var duration time.Duration
 		if routesAreSleeping() {
-			for k, _ := range fetchHistory {
-				fetchHistory[k] = 0
+			for k, _ := range emptyResponses {
+				emptyResponses[k] = 0
 			}
 			dbglogger.Println("Sleeping for extended duration!")
 			duration = extendedDuration

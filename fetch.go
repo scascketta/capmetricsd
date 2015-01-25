@@ -7,13 +7,17 @@ import (
 )
 
 var (
-	lastUpdated          map[string]time.Time = map[string]time.Time{}
-	firstNewVehicleCheck bool                 = true
-	nextNewVehicleCheck  time.Time            = time.Now()
-	vehicleCheckInterval time.Duration        = (4 * 60 * 60) * (1000 * time.Millisecond)
-	normalDuration       time.Duration        = (30) * (1000 * time.Millisecond)
-	extendedDuration     time.Duration        = (10 * 60) * (1000 * time.Millisecond)
-	fetchHistory         map[string]int       = map[string]int{}
+	lastUpdated map[string]time.Time = map[string]time.Time{}
+
+	firstNewVehicleCheck bool          = true
+	nextNewVehicleCheck  time.Time     = time.Now()
+	vehicleCheckInterval time.Duration = (4 * 60 * 60) * (1000 * time.Millisecond)
+
+	normalDuration   time.Duration = (30) * (1000 * time.Millisecond)
+	extendedDuration time.Duration = (10 * 60) * (1000 * time.Millisecond)
+
+	emptyResponses      map[string]int  = map[string]int{}
+	recentEmptyResponse map[string]bool = map[string]bool{}
 )
 
 func FilterUpdatedVehicles(vehicles []VehiclePosition) []VehiclePosition {
@@ -34,8 +38,15 @@ func LogVehiclePositions(session *r.Session, route string) error {
 		return err
 	}
 	if vehicles == nil {
-		fetchHistory[route] += 1
+		// increment retry count if fetch just before was also empty
+		// only subsequent empty responses matter when determining how long to sleep
+		if recentEmptyResponse[route] {
+			emptyResponses[route] += 1
+		}
+		recentEmptyResponse[route] = true
 		return fmt.Errorf("No vehicles in response for route: %s.", route)
+	} else {
+		recentEmptyResponse[route] = false
 	}
 
 	updated := FilterUpdatedVehicles(vehicles)
@@ -56,8 +67,9 @@ func LogVehiclePositions(session *r.Session, route string) error {
 // There must have been MAX_RETRIES previous attempts to fetch data,
 // and all attempts must have failed
 func routesAreSleeping() bool {
-	dbglogger.Println("fetchHistory:", fetchHistory)
-	for _, retries := range fetchHistory {
+	dbglogger.Println("emptyResponses:", emptyResponses)
+	dbglogger.Println("recentEmptyResponse:", recentEmptyResponse)
+	for _, retries := range emptyResponses {
 		if retries < MAX_RETRIES {
 			return false
 		}
