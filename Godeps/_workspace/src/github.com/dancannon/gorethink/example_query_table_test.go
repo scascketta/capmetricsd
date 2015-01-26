@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	r "github.com/scascketta/capmetro-log/Godeps/_workspace/src/github.com/dancannon/gorethink"
+	r "github.com/scascketta/capmetro-data/Godeps/_workspace/src/github.com/dancannon/gorethink"
 )
 
 func Example_TableCreate() {
