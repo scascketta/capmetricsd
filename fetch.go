@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	r "github.com/scascketta/capmetro-log/Godeps/_workspace/src/github.com/dancannon/gorethink"
+	r "github.com/scascketta/capmetro-data/Godeps/_workspace/src/github.com/dancannon/gorethink"
 	"time"
 )
 
