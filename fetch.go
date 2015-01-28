@@ -51,6 +51,10 @@ func LogVehiclePositions(session *r.Session, route string) error {
 
 	updated := FilterUpdatedVehicles(vehicles)
 
+	for _, v := range updated {
+		dbglogger.Printf("Vehicle %s updated at %s\n", v.VehicleID, v.Time.Format("2006-01-02T15:04:05-07:00"))
+	}
+
 	if len(updated) > 0 {
 		_, err = r.Table("vehicle_position").Insert(r.Expr(updated)).Run(session)
 		if err != nil {
