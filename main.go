@@ -38,6 +38,17 @@ func main() {
 	}
 	dbglogger.Printf("Established connection to RethinkDB server at %s.\n", connOpts.Address)
 
+	go func() {
+		for {
+			dbglogger.Println("Make vehicle stop times")
+			// TODO: make this concurrent later
+			if err := MakeVehicleStopTimes(session); err != nil {
+				errlogger.Fatal(err)
+			}
+			time.Sleep(60 * 60 * (1000 * time.Millisecond))
+		}
+	}()
+
 	var wg sync.WaitGroup
 
 	for {

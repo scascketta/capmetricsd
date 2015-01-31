@@ -20,6 +20,14 @@ var (
 	recentEmptyResponse map[string]bool = map[string]bool{}
 )
 
+type VehicleStopTime struct {
+	VehicleID string    `gorethink:"vehicle_id"`
+	Route     string    `gorethink:"route"`
+	TripID    string    `gorethink:"trip_id"`
+	StopID    string    `gorethink:"stop_id"`
+	Time      time.Time `gorethink:"timestamp"`
+}
+
 func FilterUpdatedVehicles(vehicles []VehiclePosition) []VehiclePosition {
 	updated := []VehiclePosition{}
 	for _, v := range vehicles {
@@ -81,6 +89,7 @@ func routesAreSleeping() bool {
 	return true
 }
 
+// Check if any new vehicles appear in recorded vehicle positions, add them to vehicles table
 func checkNewVehicles(session *r.Session) error {
 	new_vehicles := 0
 	dbglogger.Println("Check for new vehicles.")
@@ -120,5 +129,89 @@ func checkNewVehicles(session *r.Session) error {
 	}
 
 	dbglogger.Printf("Inserted %d new vehicles.\n", new_vehicles)
+	return nil
+}
+
+// Find closest stop at a given time for each recorded vehicle position
+func MakeVehicleStopTimes(session *r.Session) error {
+	vehicles := []Vehicle{}
+	cur, err := r.Db("capmetro").Table("vehicles").Run(session)
+	if err != nil {
+		return err
+	}
+	cur.All(&vehicles)
+	if vehicles == nil {
+		return fmt.Errorf("No vehicles available for making stop times.")
+	}
+
+	for _, vehicle := range vehicles {
+		stop_times := []VehicleStopTime{}
+		// Not using []VehiclePosition because gorethink has trouble unmarshaling the Location field
+		positions := []map[string]interface{}{}
+
+		// get all vehicle_positions for vehicle_id after vehicle.LastAnalyzed
+		// vehicle_id_timestamp is a compound index on a vehicle's id and timestamp
+		between_opts := r.BetweenOpts{Index: "vehicle_id_timestamp"}
+		lower_key := r.Expr([]interface{}{vehicle.VehicleID, vehicle.LastAnalyzed})
+		upper_key := r.Expr([]interface{}{vehicle.VehicleID, r.EpochTime(2000005200)})
+		query := r.Db("capmetro").Table("vehicle_position")
+		query = query.Between(lower_key, upper_key, between_opts)
+		cur, err := query.Run(session)
+		if err != nil {
+			errlogger.Println(err)
+			continue
+		}
+		cur.All(&positions)
+		if positions == nil {
+			dbglogger.Printf("No positions available for vehicle %s after %s.\n", vehicle.VehicleID, vehicle.LastAnalyzed.Format("2006-01-02T15:04:05-07:00"))
+			continue
+		}
+
+		dbglogger.Printf("Processing %d positions for vehicle %s after %s.\n", len(positions), vehicle.VehicleID, vehicle.LastAnalyzed.Format("2006-01-02T15:04:05-07:00"))
+		for _, position := range positions {
+			stops := []map[string]interface{}{}
+			gn_opts := r.GetNearestOpts{Index: "location", MaxDist: 100, MaxResults: 1}
+			query := r.Db("capmetro").Table("stops").GetNearest(position["location"], gn_opts)
+			cur, err := query.Run(session)
+			if err != nil {
+				errlogger.Println(err)
+				continue
+			}
+			cur.All(&stops)
+			if len(stops) == 0 {
+				continue
+			}
+			stop := stops[0]["doc"].(map[string]interface{})
+			stop_time := VehicleStopTime{
+				VehicleID: vehicle.VehicleID,
+				Route:     position["route"].(string),
+				TripID:    position["trip_id"].(string),
+				StopID:    stop["stop_id"].(string),
+				Time:      position["timestamp"].(time.Time),
+			}
+			if len(stop_times) > 0 {
+				// Don't want to log stop_time at the same stop with later timestamp
+				recent_stop := stop_times[len(stop_times)-1]
+				recent_stopid_matches := recent_stop.StopID == stop_time.StopID
+				recent_stop_before := recent_stop.Time.Before(stop_time.Time)
+				if recent_stopid_matches && recent_stop_before {
+					dbglogger.Println("Skip stoptime")
+					continue
+				}
+			}
+			stop_times = append(stop_times, stop_time)
+			dbglogger.Printf("Added stop_time: stop=%s, time=%s.\n", stop_time.StopID, stop_time.Time.Format("2006-01-02T15:04:05-07:00"))
+		}
+		_, err = r.Db("capmetro").Table("vehicle_stop_times").Insert(r.Expr(stop_times)).Run(session)
+		if err != nil {
+			errlogger.Println(err)
+		}
+		dbglogger.Printf("Added %d stop times for vehicle %s.\n", len(stop_times), vehicle.VehicleID)
+		vehicle.LastAnalyzed = time.Now()
+		_, err = r.Db("capmetro").Table("vehicles").Get(vehicle.ID).Update(r.Expr(vehicle)).RunWrite(session)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }

@@ -11,6 +11,7 @@ import (
 )
 
 type Vehicle struct {
+	ID           string    `gorethink:"id,omitempty"`
 	VehicleID    string    `gorethink:"vehicle_id"`
 	Route        string    `gorethink:"route"`         // 80X
 	RouteID      string    `gorethink:"route_id"`      // route id for machines
