@@ -151,7 +151,7 @@ func MakeVehicleStopTimes(session *r.Session) error {
 
 		// get all vehicle_positions for vehicle_id after vehicle.LastAnalyzed
 		// vehicle_id_timestamp is a compound index on a vehicle's id and timestamp
-		between_opts := r.BetweenOpts{Index: "vehicle_id_timestamp"}
+		between_opts := r.BetweenOpts{Index: "vehicle_timestamp"}
 		lower_key := r.Expr([]interface{}{vehicle.VehicleID, vehicle.LastAnalyzed})
 		upper_key := r.Expr([]interface{}{vehicle.VehicleID, r.EpochTime(2000005200)})
 		query := r.Db("capmetro").Table("vehicle_position")
@@ -189,17 +189,17 @@ func MakeVehicleStopTimes(session *r.Session) error {
 				StopID:    stop["stop_id"].(string),
 				Time:      position["timestamp"].(time.Time),
 			}
-			if len(stop_times) > 0 {
-				// Don't want to log stop_time at the same stop with later timestamp
-				recent_stop := stop_times[len(stop_times)-1]
-				recent_stopid_matches := recent_stop.StopID == stop_time.StopID
-				recent_stop_before := recent_stop.Time.Before(stop_time.Time)
-				if recent_stopid_matches && recent_stop_before {
-					dbglogger.Println("Skip stoptime")
-					continue
+
+			if len(stop_times) > 0 && stop_times[len(stop_times)-1].StopID == stop_time.StopID {
+				// Replace most recent stop_time if current stop_time has earlier timestamp
+				// We want to avoid duplicate stop_times and in the case of duplicate, use the earlier stop_time
+				if stop_time.Time.Before(stop_times[len(stop_times)-1].Time) {
+					stop_times[len(stop_times)-1] = stop_time
 				}
+				continue
+			} else {
+				stop_times = append(stop_times, stop_time)
 			}
-			stop_times = append(stop_times, stop_time)
 			dbglogger.Printf("Added stop_time: stop=%s, time=%s.\n", stop_time.StopID, stop_time.Time.Format("2006-01-02T15:04:05-07:00"))
 		}
 		_, err = r.Db("capmetro").Table("vehicle_stop_times").Insert(r.Expr(stop_times)).Run(session)
