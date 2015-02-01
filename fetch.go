@@ -133,7 +133,10 @@ func checkNewVehicles(session *r.Session) error {
 }
 
 // Find closest stop at a given time for each recorded vehicle position
+// A vehicle stop time (or just stop time) is a struct that relates a vehicle to a stop at a specific time
 func MakeVehicleStopTimes(session *r.Session) error {
+
+	// Get all vehicles
 	vehicles := []Vehicle{}
 	cur, err := r.Db("capmetro").Table("vehicles").Run(session)
 	if err != nil {
@@ -144,18 +147,20 @@ func MakeVehicleStopTimes(session *r.Session) error {
 		return fmt.Errorf("No vehicles available for making stop times.")
 	}
 
+	// get all recorded positions for each vehicle
 	for _, vehicle := range vehicles {
+
 		stop_times := []VehicleStopTime{}
 		// Not using []VehiclePosition because gorethink has trouble unmarshaling the Location field
 		positions := []map[string]interface{}{}
 
-		// get all vehicle_positions for vehicle_id after vehicle.LastAnalyzed
-		// vehicle_id_timestamp is a compound index on a vehicle's id and timestamp
-		between_opts := r.BetweenOpts{Index: "vehicle_timestamp"}
+		// get all vehicle_positions for vehicle_id after the vehicle was last analyzed
+		between_opts := r.BetweenOpts{Index: "vehicle_timestamp"} // a compound index on a vehicle's id and timestamp
 		lower_key := r.Expr([]interface{}{vehicle.VehicleID, vehicle.LastAnalyzed})
 		upper_key := r.Expr([]interface{}{vehicle.VehicleID, r.EpochTime(2000005200)})
 		query := r.Db("capmetro").Table("vehicle_position")
 		query = query.Between(lower_key, upper_key, between_opts)
+
 		cur, err := query.Run(session)
 		if err != nil {
 			errlogger.Println(err)
@@ -169,9 +174,12 @@ func MakeVehicleStopTimes(session *r.Session) error {
 
 		dbglogger.Printf("Processing %d positions for vehicle %s after %s.\n", len(positions), vehicle.VehicleID, vehicle.LastAnalyzed.Format("2006-01-02T15:04:05-07:00"))
 		for _, position := range positions {
+
+			// find the closest stop within 100m for each position (if any)
 			stops := []map[string]interface{}{}
 			gn_opts := r.GetNearestOpts{Index: "location", MaxDist: 100, MaxResults: 1}
 			query := r.Db("capmetro").Table("stops").GetNearest(position["location"], gn_opts)
+
 			cur, err := query.Run(session)
 			if err != nil {
 				errlogger.Println(err)
@@ -181,6 +189,9 @@ func MakeVehicleStopTimes(session *r.Session) error {
 			if len(stops) == 0 {
 				continue
 			}
+
+			// the result of a GetNearest geospatial query contains the distance from the point specified (indexed by "dist")
+			// and the document for the closest stop (indexed by "doc")
 			stop := stops[0]["doc"].(map[string]interface{})
 			stop_time := VehicleStopTime{
 				VehicleID: vehicle.VehicleID,
@@ -202,6 +213,7 @@ func MakeVehicleStopTimes(session *r.Session) error {
 			}
 			dbglogger.Printf("Added stop_time: stop=%s, time=%s.\n", stop_time.StopID, stop_time.Time.Format("2006-01-02T15:04:05-07:00"))
 		}
+
 		_, err = r.Db("capmetro").Table("vehicle_stop_times").Insert(r.Expr(stop_times)).Run(session)
 		if err != nil {
 			errlogger.Println(err)
