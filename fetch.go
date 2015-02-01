@@ -25,6 +25,7 @@ type VehicleStopTime struct {
 	Route     string    `gorethink:"route"`
 	TripID    string    `gorethink:"trip_id"`
 	StopID    string    `gorethink:"stop_id"`
+	Direction string    `gorethink:"direction"`
 	Time      time.Time `gorethink:"timestamp"`
 }
 
@@ -52,7 +53,8 @@ func LogVehiclePositions(session *r.Session, route string) error {
 			emptyResponses[route] += 1
 		}
 		recentEmptyResponse[route] = true
-		return fmt.Errorf("No vehicles in response for route: %s.", route)
+		dbglogger.Printf("No vehicles in response for route: %s.", route)
+		return nil
 	} else {
 		recentEmptyResponse[route] = false
 	}
@@ -156,10 +158,11 @@ func MakeVehicleStopTimes(session *r.Session) error {
 
 		// get all vehicle_positions for vehicle_id after the vehicle was last analyzed
 		between_opts := r.BetweenOpts{Index: "vehicle_timestamp"} // a compound index on a vehicle's id and timestamp
+		orderby_opts := r.OrderByOpts{Index: "vehicle_timestamp"} // must use same index to chain the orderBy with secondary index
 		lower_key := r.Expr([]interface{}{vehicle.VehicleID, vehicle.LastAnalyzed})
 		upper_key := r.Expr([]interface{}{vehicle.VehicleID, r.EpochTime(2000005200)})
 		query := r.Db("capmetro").Table("vehicle_position")
-		query = query.Between(lower_key, upper_key, between_opts)
+		query = query.Between(lower_key, upper_key, between_opts).OrderBy(r.Desc("vehicle_timestamp"), orderby_opts)
 
 		cur, err := query.Run(session)
 		if err != nil {
@@ -199,6 +202,7 @@ func MakeVehicleStopTimes(session *r.Session) error {
 				TripID:    position["trip_id"].(string),
 				StopID:    stop["stop_id"].(string),
 				Time:      position["timestamp"].(time.Time),
+				Direction: position["direction"].(string),
 			}
 
 			if len(stop_times) > 0 && stop_times[len(stop_times)-1].StopID == stop_time.StopID {
