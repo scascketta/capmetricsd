@@ -45,7 +45,7 @@ func main() {
 			if err := MakeVehicleStopTimes(session); err != nil {
 				errlogger.Fatal(err)
 			}
-			time.Sleep(15 * 60 * (1000 * time.Millisecond))
+			time.Sleep(10 * 60 * (1000 * time.Millisecond))
 		}
 	}()
 
