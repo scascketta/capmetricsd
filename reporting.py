@@ -61,6 +61,9 @@ def get_travel_time(stop_start, stop_end, route, direction, time=arrow.now(), wi
         if len(stop_times) == 2:
             break
 
+    if stop_times is None or len(stop_times) != 2:
+        return None
+
     return stop_times[1]['timestamp'] - stop_times[0]['timestamp']
 
 
