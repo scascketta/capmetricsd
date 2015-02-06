@@ -82,11 +82,58 @@ def get_vehicle_stop_times(vehicle_id, num=50, max_dist=100):
     return res
 
 
+# get_travel_time('5863', '5867', '801', 'S')
+def get_travel_time(stop_start, stop_end, route, direction, timestamp=arrow.now(), window=30):
+    # get vehicles traveling between stop_start, stop_end
+    lower_time = r.epoch_time(timestamp.replace(minutes=-window).timestamp)
+    upper_time = r.epoch_time(timestamp.timestamp)
+    lower_key = [route, direction, stop_start, lower_time]
+    upper_key = [route, direction, stop_start, upper_time]
+    query = r.table('vehicle_stop_times') \
+                .between(lower_key, upper_key, index='route_direction_stop_time') \
+                .order_by(index=r.desc('route_direction_stop_time'))
+    vehicles = list(query.run())
+    print '# vehicles:', len(vehicles)
+    ind = 0
+    stop_times = _get_stop_times_for_vehicle(vehicles[ind]['vehicle_id'], stop_start, stop_end, route, direction, timestamp=timestamp, window=window)
+    print 'stop_times:', stop_times
+    while len(stop_times) < 2 and ind < len(vehicles) - 1:
+        ind += 1
+        print ind
+        stop_times = _get_stop_times_for_vehicle(vehicles[ind]['vehicle_id'], stop_start, stop_end, route, direction, timestamp=timestamp, window=window)
+    return stop_times
+
+
+# timestamp = arrow.get('2015-02-05T22:00:00Z')
+# _get_stop_times_for_vehicle('5022', '5863', '5867', '801', 'S')
+def _get_stop_times_for_vehicle(vehicle, stop_start, stop_end, route, direction, index='route_direction_vehicle_time', timestamp=arrow.now(), window=30):
+    lower_key = [route, direction, vehicle, r.epoch_time(timestamp.timestamp)]
+    upper_key = [route, direction, vehicle, r.epoch_time(timestamp.replace(minutes=+window).timestamp)]
+    query = r.table('vehicle_stop_times') \
+                .between(lower_key, upper_key, index=index) \
+                .order_by(index=r.asc(index)) \
+                .filter((r.row['stop_id'] == stop_start) | (r.row['stop_id'] == stop_end))
+
+    return list(query.run())
+
+
+def _get_stops_for_route_direction(route, direction, index='route_direction', ascending=True):
+    right_key = chr(ord(direction) + 1)
+    order = r.asc('stop_sequence') if ascending else r.desc('stop_sequence')
+
+    query = r.table('stops').between([route, direction], [route, right_key], index=index)
+    query = query.order_by(order)
+    return list(query.run())
+
+
 if __name__ == '__main__':
     # if len(sys.argv) < 3:
     #     print 'Usage: example.py <vehicle_id> <limit>'
     #     sys.exit(-1)
 
-    conn = r.connect('localhost', 28015)
+    conn = r.connect('104.131.115.42', 28015)
     conn.repl()
     conn.use('capmetro')
+    timestamp = arrow.get('2015-02-05T22:00:00Z')
+    times = get_travel_time('5863', '5867', '801', 'S', timestamp=timestamp)
+
