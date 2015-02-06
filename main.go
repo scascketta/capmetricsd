@@ -4,6 +4,7 @@ import (
 	r "github.com/scascketta/capmetro-data/Godeps/_workspace/src/github.com/dancannon/gorethink"
 	"log"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -11,18 +12,23 @@ import (
 const MAX_RETRIES int = 5
 
 var (
-	dbglogger *log.Logger = log.New(os.Stdout, "[DBG] ", log.LstdFlags|log.Lshortfile)
-	errlogger *log.Logger = log.New(os.Stderr, "[ERR] ", log.LstdFlags|log.Lshortfile)
-	session   *r.Session
-	DB_NAME   string        = os.Getenv("DB_NAME")
-	connOpts  r.ConnectOpts = r.ConnectOpts{Address: "localhost:28015", Database: DB_NAME}
-	routes    []string      = []string{"803", "801", "550"}
+	MAX_DISTANCE int
+	session      *r.Session
+	dbglogger    *log.Logger   = log.New(os.Stdout, "[DBG] ", log.LstdFlags|log.Lshortfile)
+	errlogger    *log.Logger   = log.New(os.Stderr, "[ERR] ", log.LstdFlags|log.Lshortfile)
+	DB_NAME      string        = os.Getenv("DB_NAME")
+	config_keys  []string      = []string{"DB_NAME", "MAX_DISTANCE"}
+	connOpts     r.ConnectOpts = r.ConnectOpts{Address: "localhost:28015", Database: DB_NAME}
+	routes       []string      = []string{"803", "801", "550"}
 )
 
 func init() {
-	if len(os.Getenv("DB_NAME")) == 0 {
-		errlogger.Fatal("Missing envvar DB_NAME")
+	for _, config := range config_keys {
+		if len(os.Getenv(config)) == 0 {
+			errlogger.Fatal("Missing envvar for: ", config)
+		}
 	}
+	MAX_DISTANCE, _ = strconv.Atoi(os.Getenv("MAX_DISTANCE"))
 }
 
 func main() {

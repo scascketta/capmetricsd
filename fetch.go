@@ -21,12 +21,13 @@ var (
 )
 
 type VehicleStopTime struct {
-	VehicleID string    `gorethink:"vehicle_id"`
-	Route     string    `gorethink:"route"`
-	TripID    string    `gorethink:"trip_id"`
-	StopID    string    `gorethink:"stop_id"`
-	Direction string    `gorethink:"direction"`
-	Time      time.Time `gorethink:"timestamp"`
+	VehicleID   string    `gorethink:"vehicle_id"`
+	Route       string    `gorethink:"route"`
+	TripID      string    `gorethink:"trip_id"`
+	StopID      string    `gorethink:"stop_id"`
+	Direction   string    `gorethink:"direction"`
+	Time        time.Time `gorethink:"timestamp"`
+	MaxDistance int       `gorethink:"max_distance"`
 }
 
 func FilterUpdatedVehicles(vehicles []VehiclePosition) []VehiclePosition {
@@ -180,7 +181,7 @@ func MakeVehicleStopTimes(session *r.Session) error {
 
 			// find the closest stop within 100m for each position (if any)
 			stops := []map[string]interface{}{}
-			gn_opts := r.GetNearestOpts{Index: "location", MaxDist: 100, MaxResults: 1}
+			gn_opts := r.GetNearestOpts{Index: "location", MaxDist: MAX_DISTANCE, MaxResults: 1}
 			query := r.Db("capmetro").Table("stops").GetNearest(position["location"], gn_opts)
 
 			cur, err := query.Run(session)
@@ -197,12 +198,13 @@ func MakeVehicleStopTimes(session *r.Session) error {
 			// and the document for the closest stop (indexed by "doc")
 			stop := stops[0]["doc"].(map[string]interface{})
 			stop_time := VehicleStopTime{
-				VehicleID: vehicle.VehicleID,
-				Route:     position["route"].(string),
-				TripID:    position["trip_id"].(string),
-				StopID:    stop["stop_id"].(string),
-				Time:      position["timestamp"].(time.Time),
-				Direction: position["direction"].(string),
+				VehicleID:   vehicle.VehicleID,
+				Route:       position["route"].(string),
+				TripID:      position["trip_id"].(string),
+				StopID:      stop["stop_id"].(string),
+				Time:        position["timestamp"].(time.Time),
+				Direction:   position["direction"].(string),
+				MaxDistance: MAX_DISTANCE,
 			}
 
 			if len(stop_times) > 0 && stop_times[len(stop_times)-1].StopID == stop_time.StopID {
