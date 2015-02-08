@@ -1,63 +1,55 @@
 package main
 
 import (
-	r "github.com/scascketta/capmetro-data/Godeps/_workspace/src/github.com/dancannon/gorethink"
+	"fmt"
 	"log"
 	"os"
-	"strconv"
 	"sync"
 	"time"
-)
 
-const MAX_RETRIES int = 5
+	r "github.com/scascketta/capmetro-data/Godeps/_workspace/src/github.com/dancannon/gorethink"
+	"github.com/scascketta/capmetro-data/Godeps/_workspace/src/github.com/kelseyhightower/envconfig"
+)
 
 var (
-	MAX_DISTANCE int
-	session      *r.Session
-	dbglogger    *log.Logger   = log.New(os.Stdout, "[DBG] ", log.LstdFlags|log.Lshortfile)
-	errlogger    *log.Logger   = log.New(os.Stderr, "[ERR] ", log.LstdFlags|log.Lshortfile)
-	DB_NAME      string        = os.Getenv("DB_NAME")
-	config_keys  []string      = []string{"DB_NAME", "MAX_DISTANCE"}
-	connOpts     r.ConnectOpts = r.ConnectOpts{Address: "localhost:28015", Database: DB_NAME}
-	routes       []string      = []string{"803", "801", "550"}
+	session   *r.Session
+	dbglogger = log.New(os.Stdout, "[DBG] ", log.LstdFlags|log.Lshortfile)
+	errlogger = log.New(os.Stderr, "[ERR] ", log.LstdFlags|log.Lshortfile)
+	config    = Config{}
+	routes    = []string{"803", "801", "550"}
 )
 
-func init() {
-	for _, config := range config_keys {
-		if len(os.Getenv(config)) == 0 {
-			errlogger.Fatal("Missing envvar for: ", config)
-		}
-	}
-	MAX_DISTANCE, _ = strconv.Atoi(os.Getenv("MAX_DISTANCE"))
+// Config contains all configuration
+type Config struct {
+	DbName, DbAddr, DbPort  string
+	MaxDistance, MaxRetries int
 }
 
 func main() {
+	err := envconfig.Process("cmdata", &config)
+	if err != nil {
+		errlogger.Fatal(err)
+	}
+	dbglogger.Println("Config:", config)
+	connOpts := r.ConnectOpts{Address: fmt.Sprintf("%s:%s", config.DbAddr, config.DbPort), Database: config.DbName}
+
 	// initialize current fetch retries to 0
 	for _, route := range routes {
 		emptyResponses[route] = 1
 		recentEmptyResponse[route] = false
 	}
 
-	session, err := r.Connect(connOpts)
-	if err != nil {
-		errlogger.Fatal(err)
-	}
 	dbglogger.Printf("Established connection to RethinkDB server at %s.\n", connOpts.Address)
-
-	go func() {
-		for {
-			dbglogger.Println("Make vehicle stop times")
-			// TODO: make this concurrent later
-			if err := MakeVehicleStopTimes(session); err != nil {
-				errlogger.Fatal(err)
-			}
-			time.Sleep(10 * 60 * (1000 * time.Millisecond))
-		}
-	}()
 
 	var wg sync.WaitGroup
 
 	for {
+		session, err := r.Connect(connOpts)
+		if err != nil {
+			errlogger.Fatal(err)
+		}
+		defer session.Close()
+
 		// log new vehicle positions
 		for _, route := range routes {
 			wg.Add(1)
@@ -69,6 +61,15 @@ func main() {
 				wg.Done()
 			}(session, route)
 		}
+
+		wg.Add(1)
+		go func(session *r.Session) {
+			dbglogger.Println("Make vehicle stop times")
+			if err := MakeVehicleStopTimes(session); err != nil {
+				errlogger.Println(err)
+			}
+			wg.Done()
+		}(session)
 
 		// check for new vehicles if after next check time, add new ones
 		// (added eventually, not necessarily as soon as a new vehicle appears in vehicle_positions table)
@@ -91,7 +92,7 @@ func main() {
 		// if no vehicles were received from capmetro MAX_RETRIES in a row, sleep longer
 		var duration time.Duration
 		if routesAreSleeping() {
-			for k, _ := range emptyResponses {
+			for k := range emptyResponses {
 				emptyResponses[k] = 0
 			}
 			dbglogger.Println("Sleeping for extended duration!")

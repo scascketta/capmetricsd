@@ -6,6 +6,11 @@
 			"ImportPath": "github.com/dancannon/gorethink",
 			"Comment": "v0.5.x",
 			"Rev": "e590ff2fbe7286788da60f90e6b2bfced91dca66"
+		},
+		{
+			"ImportPath": "github.com/kelseyhightower/envconfig",
+			"Comment": "v1.0.0-6-ge904934",
+			"Rev": "e9049346b6aae8e6ad500c5a4519ad029439d660"
 		}
 	]
 }
