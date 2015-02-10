@@ -54,7 +54,7 @@ func main() {
 		for _, route := range routes {
 			wg.Add(1)
 			go func(session *r.Session, route string) {
-				err = LogVehiclePositions(session, route)
+				err = LogVehicleLocations(session, route)
 				if err != nil {
 					errlogger.Println(err)
 				}

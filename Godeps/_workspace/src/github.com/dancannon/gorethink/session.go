@@ -5,7 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"gopkg.in/fatih/pool.v2"
+	"github.com/scascketta/capmetro-data/Godeps/_workspace/src/gopkg.in/fatih/pool.v2"
 
 	p "github.com/scascketta/capmetro-data/Godeps/_workspace/src/github.com/dancannon/gorethink/ql2"
 )

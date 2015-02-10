@@ -32,10 +32,10 @@ type VehicleStopTime struct {
 	MaxDistance int       `gorethink:"max_distance"`
 }
 
-// FilterUpdatedVehicles returns the VehiclePosition structs whose timestamp has
+// FilterUpdatedVehicles returns the VehicleLocation structs whose timestamp has
 // changed since the last update
-func FilterUpdatedVehicles(vehicles []VehiclePosition) []VehiclePosition {
-	updated := []VehiclePosition{}
+func FilterUpdatedVehicles(vehicles []VehicleLocation) []VehicleLocation {
+	updated := []VehicleLocation{}
 	for _, v := range vehicles {
 		updateTime, _ := lastUpdated[v.VehicleID]
 		lastUpdated[v.VehicleID] = v.Time
@@ -46,10 +46,10 @@ func FilterUpdatedVehicles(vehicles []VehiclePosition) []VehiclePosition {
 	return updated
 }
 
-// LogVehiclePositions fetches vehicle locations from CapMetro and inserts new
+// LogVehicleLocations fetches vehicle locations from CapMetro and inserts new
 // locations into the database. It also tracks empty responses to determine when
 //  to sleep.
-func LogVehiclePositions(session *r.Session, route string) error {
+func LogVehicleLocations(session *r.Session, route string) error {
 	vehicles, err := FetchVehicles(route)
 	if err != nil {
 		return err
@@ -147,7 +147,7 @@ func MakeVehicleStopTimes(session *r.Session) error {
 
 	// Get all vehicles
 	vehicles := []Vehicle{}
-	cur, err := r.Db("capmetro").Table("vehicles").Run(session)
+	cur, err := r.Db(config.DbName).Table("vehicles").Run(session)
 	if err != nil {
 		return err
 	}
@@ -160,7 +160,7 @@ func MakeVehicleStopTimes(session *r.Session) error {
 	for _, vehicle := range vehicles {
 
 		stopTimes := []VehicleStopTime{}
-		// Not using []VehiclePosition because gorethink has trouble unmarshaling the Location field
+		// Not using []VehicleLocation because gorethink has trouble unmarshaling the Location field
 		positions := []map[string]interface{}{}
 
 		// get all vehicle_positions for vehicle_id after the vehicle was last analyzed
@@ -168,7 +168,7 @@ func MakeVehicleStopTimes(session *r.Session) error {
 		orderByOpts := r.OrderByOpts{Index: "vehicle_timestamp"} // must use same index to chain the orderBy with secondary index
 		lowerKey := r.Expr([]interface{}{vehicle.VehicleID, vehicle.LastAnalyzed})
 		upperKey := r.Expr([]interface{}{vehicle.VehicleID, r.EpochTime(2000005200)})
-		query := r.Db("capmetro").Table("vehicle_position")
+		query := r.Db(config.DbName).Table("vehicle_position")
 		query = query.Between(lowerKey, upperKey, betweenOpts).OrderBy(r.Desc("vehicle_timestamp"), orderByOpts)
 
 		cur, err := query.Run(session)
@@ -188,7 +188,7 @@ func MakeVehicleStopTimes(session *r.Session) error {
 			// find the closest stop within 100m for each position (if any)
 			stops := []map[string]interface{}{}
 			gnOpts := r.GetNearestOpts{Index: "location", MaxDist: config.MaxDistance, MaxResults: 1}
-			query := r.Db("capmetro").Table("stops").GetNearest(position["location"], gnOpts)
+			query := r.Db(config.DbName).Table("stops").GetNearest(position["location"], gnOpts)
 
 			cur, err := query.Run(session)
 			if err != nil {
@@ -226,13 +226,13 @@ func MakeVehicleStopTimes(session *r.Session) error {
 			dbglogger.Printf("Added stopTime: stop=%s, time=%s.\n", stopTime.StopID, stopTime.Time.Format("2006-01-02T15:04:05-07:00"))
 		}
 
-		_, err = r.Db("capmetro").Table("vehicle_stop_times").Insert(r.Expr(stopTimes)).Run(session)
+		_, err = r.Db(config.DbName).Table("vehicle_stop_times").Insert(r.Expr(stopTimes)).Run(session)
 		if err != nil {
 			errlogger.Println(err)
 		}
 		dbglogger.Printf("Added %d stop times for vehicle %s.\n", len(stopTimes), vehicle.VehicleID)
 		vehicle.LastAnalyzed = time.Now()
-		_, err = r.Db("capmetro").Table("vehicles").Get(vehicle.ID).Update(r.Expr(vehicle)).RunWrite(session)
+		_, err = r.Db(config.DbName).Table("vehicles").Get(vehicle.ID).Update(r.Expr(vehicle)).RunWrite(session)
 		if err != nil {
 			return err
 		}
