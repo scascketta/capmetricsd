@@ -39,7 +39,9 @@ func FilterUpdatedVehicles(vehicles []VehiclePosition) []VehiclePosition {
 	for _, v := range vehicles {
 		updateTime, _ := lastUpdated[v.VehicleID]
 		lastUpdated[v.VehicleID] = v.Time
-		if !updateTime.Equal(v.Time) {
+		threshold := time.Now().Add(time.Minute)
+		// reject location updates if timestamp hasn't changed or is more than 1 minute in the future
+		if !updateTime.Equal(v.Time) && v.Time.Before(threshold) {
 			updated = append(updated, v)
 		}
 	}
