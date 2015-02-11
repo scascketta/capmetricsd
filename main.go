@@ -41,6 +41,21 @@ func main() {
 
 	dbglogger.Printf("Established connection to RethinkDB server at %s.\n", connOpts.Address)
 
+	go func() {
+		for {
+			session, err := r.Connect(connOpts)
+			if err != nil {
+				errlogger.Println(err)
+			}
+			dbglogger.Println("Make vehicle stop times")
+			if err := MakeVehicleStopTimes(session); err != nil {
+				errlogger.Println(err)
+			}
+			session.Close()
+			time.Sleep(2 * time.Minute)
+		}
+	}()
+
 	var wg sync.WaitGroup
 
 	for {
@@ -48,7 +63,6 @@ func main() {
 		if err != nil {
 			errlogger.Fatal(err)
 		}
-		defer session.Close()
 
 		// log new vehicle positions
 		for _, route := range routes {
@@ -61,15 +75,6 @@ func main() {
 				wg.Done()
 			}(session, route)
 		}
-
-		wg.Add(1)
-		go func(session *r.Session) {
-			dbglogger.Println("Make vehicle stop times")
-			if err := MakeVehicleStopTimes(session); err != nil {
-				errlogger.Println(err)
-			}
-			wg.Done()
-		}(session)
 
 		// check for new vehicles if after next check time, add new ones
 		// (added eventually, not necessarily as soon as a new vehicle appears in vehicle_positions table)
@@ -102,6 +107,7 @@ func main() {
 			duration = normalDuration
 		}
 
+		session.Close()
 		time.Sleep(duration)
 		dbglogger.Println("Wake up!")
 	}

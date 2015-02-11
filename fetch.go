@@ -14,8 +14,8 @@ var (
 	nextNewVehicleCheck  = time.Now()
 	vehicleCheckInterval = (4 * 60 * 60) * (1000 * time.Millisecond)
 
-	normalDuration   = (30) * (1000 * time.Millisecond)
-	extendedDuration = (10 * 60) * (1000 * time.Millisecond)
+	normalDuration   = 30 * time.Second
+	extendedDuration = 10 * time.Minute
 
 	emptyResponses      = map[string]int{}
 	recentEmptyResponse = map[string]bool{}
