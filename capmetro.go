@@ -2,14 +2,16 @@ package main
 
 import (
 	"encoding/xml"
-	r "github.com/scascketta/capmetro-data/Godeps/_workspace/src/github.com/dancannon/gorethink"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	r "github.com/scascketta/capmetro-data/Godeps/_workspace/src/github.com/dancannon/gorethink"
 )
 
+// Vehicle contains information about a unique vehicle and time cursors for analysis (like last_analyzed)
 type Vehicle struct {
 	ID           string    `gorethink:"id,omitempty"`
 	VehicleID    string    `gorethink:"vehicle_id"`
@@ -19,6 +21,7 @@ type Vehicle struct {
 	LastAnalyzed time.Time `gorethink:"last_analyzed"` // last time vehicle was analyzed for stop times
 }
 
+// VehiclePosition assigns a location for a vehicle at a certain time
 type VehiclePosition struct {
 	VehicleID string    `gorethink:"vehicle_id"`
 	Direction string    `gorethink:"direction"` // N/S
@@ -43,11 +46,12 @@ type xmlVehicle struct {
 	Positions []string `xml:"Positions>Position"`
 }
 
-type VehicleData struct {
+type xmlVehicles struct {
 	Route    string       `xml:"Body>BuslocationResponse>Input>Route"`
 	Vehicles []xmlVehicle `xml:"Body>BuslocationResponse>Vehicles>Vehicle"`
 }
 
+// FetchVehicles fetches the latest VehiclePositions moving in any direction on the specified route
 func FetchVehicles(route string) ([]VehiclePosition, error) {
 	res, err := http.Get("http://www.capmetro.org/planner/s_buslocation.asp?route=" + route)
 	if err != nil {
@@ -55,10 +59,11 @@ func FetchVehicles(route string) ([]VehiclePosition, error) {
 	}
 	b, _ := ioutil.ReadAll(res.Body)
 
-	var data VehicleData
+	var data xmlVehicles
 	err = xml.Unmarshal(b, &data)
 	if err != nil {
 		errlogger.Println(err)
+		return nil, err
 	}
 
 	var vehicles []VehiclePosition

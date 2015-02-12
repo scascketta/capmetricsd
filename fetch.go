@@ -12,7 +12,7 @@ var (
 
 	firstNewVehicleCheck = true
 	nextNewVehicleCheck  = time.Now()
-	vehicleCheckInterval = (4 * 60 * 60) * (1000 * time.Millisecond)
+	vehicleCheckInterval = 4 * time.Hour
 
 	normalDuration   = 30 * time.Second
 	extendedDuration = 10 * time.Minute
@@ -149,7 +149,7 @@ func MakeVehicleStopTimes(session *r.Session) error {
 
 	// Get all vehicles
 	vehicles := []Vehicle{}
-	cur, err := r.Db("capmetro").Table("vehicles").Run(session)
+	cur, err := r.Table("vehicles").Run(session)
 	if err != nil {
 		return err
 	}
@@ -170,7 +170,7 @@ func MakeVehicleStopTimes(session *r.Session) error {
 		orderByOpts := r.OrderByOpts{Index: "vehicle_timestamp"} // must use same index to chain the orderBy with secondary index
 		lowerKey := r.Expr([]interface{}{vehicle.VehicleID, vehicle.LastAnalyzed})
 		upperKey := r.Expr([]interface{}{vehicle.VehicleID, r.EpochTime(2000005200)})
-		query := r.Db("capmetro").Table("vehicle_position")
+		query := r.Table("vehicle_position")
 		query = query.Between(lowerKey, upperKey, betweenOpts).OrderBy(r.Desc("vehicle_timestamp"), orderByOpts)
 
 		cur, err := query.Run(session)
@@ -190,7 +190,7 @@ func MakeVehicleStopTimes(session *r.Session) error {
 			// find the closest stop within 100m for each position (if any)
 			stops := []map[string]interface{}{}
 			gnOpts := r.GetNearestOpts{Index: "location", MaxDist: config.MaxDistance, MaxResults: 1}
-			query := r.Db("capmetro").Table("stops").GetNearest(position["location"], gnOpts)
+			query := r.Table("stops").GetNearest(position["location"], gnOpts)
 
 			cur, err := query.Run(session)
 			if err != nil {
@@ -228,13 +228,16 @@ func MakeVehicleStopTimes(session *r.Session) error {
 			dbglogger.Printf("Added stopTime: stop=%s, time=%s.\n", stopTime.StopID, stopTime.Time.Format("2006-01-02T15:04:05-07:00"))
 		}
 
-		_, err = r.Db("capmetro").Table("vehicle_stop_times").Insert(r.Expr(stopTimes)).Run(session)
+		// Insert vehicle stop times into db
+		_, err = r.Table("vehicle_stop_times").Insert(r.Expr(stopTimes)).Run(session)
 		if err != nil {
 			errlogger.Println(err)
 		}
 		dbglogger.Printf("Added %d stop times for vehicle %s.\n", len(stopTimes), vehicle.VehicleID)
+
+		// Set last_analyzed time in order to start just after here next time
 		vehicle.LastAnalyzed = time.Now()
-		_, err = r.Db("capmetro").Table("vehicles").Get(vehicle.ID).Update(r.Expr(vehicle)).RunWrite(session)
+		_, err = r.Table("vehicles").Get(vehicle.ID).Update(r.Expr(vehicle)).RunWrite(session)
 		if err != nil {
 			return err
 		}
