@@ -4,6 +4,7 @@ import os
 import requests
 import rethinkdb as r
 
+DB_NAME = 'test'
 BASE_URL = 'https://raw.githubusercontent.com/luqmaan/MetroRappid/b6b38d242bf8d248f603ea7e84af9a9110d77b18'
 ROUTES_URL = BASE_URL + '/data/routes.json'
 STOP_URLS = {
@@ -17,11 +18,20 @@ STOP_URLS = {
 BACKWARDS_ROUTES = [550]
 
 
-def fetch_routes(conn, url=ROUTES_URL):
-    routes_data = requests.get(url).json()
+def _table_exists(conn, table):
+    return table in r.table_list().run(conn)
 
-    print 'Creating table for routes'
-    r.table_create('routes').run(conn)
+
+def setup_routes(conn, url=ROUTES_URL):
+    table_name = 'routes'
+    print 'Bootstrapping the {} table.'.format(table_name)
+
+    if not _table_exists(conn, table_name):
+        r.db(DB_NAME).table_create(table_name).run(conn)
+    else:
+        print 'Table {} already exists, skipping'.format(table_name)
+
+    routes_data = requests.get(url).json()
 
     # Add consistent direction field
     for route in routes_data:
@@ -31,17 +41,19 @@ def fetch_routes(conn, url=ROUTES_URL):
             if route['route_id'] in BACKWARDS_ROUTES:
                 d['direction'] = 'N' if dir_id == 1 else 'S'
 
-    print 'Inserting routes into routes table'
     r.table('routes').insert(routes_data).run(conn)
 
     return routes_data
 
 
-def fetch_stops(conn, routes_data):
-    print 'Creating tables for stops'
+def setup_stops(conn, routes_data):
+    table_name = 'stops'
+    print 'Bootstrapping the {} table.'.format(table_name)
 
-    # fetch and clean stops data
-    r.table_create('stops').run(conn)
+    if not _table_exists(conn, table_name):
+        r.db(DB_NAME).table_create(table_name).run(conn)
+    else:
+        print 'Table {} already exists, skipping'.format(table_name)
 
     all_stops = []
     for route in routes_data:
@@ -64,11 +76,47 @@ def fetch_stops(conn, routes_data):
 
             all_stops.extend(stops_data)
 
-    r.table('stops').insert(all_stops).run(conn)
+    r.table(table_name).insert(all_stops).run(conn)
+
+
+def setup_vehicle_positions(conn):
+    table_name = 'vehicle_position'
+    print 'Bootstrapping the {} table.'.format(table_name)
+
+    if not _table_exists(conn, table_name):
+        r.db(DB_NAME).table_create(table_name).run(conn)
+    else:
+        print 'Table {} already exists, skipping'.format(table_name)
+
+    r.table(table_name).index_create('vehicle_timestamp', [r.row['vehicle_id'], r.row['timestamp']]).run(conn)
+    r.table(table_name).index_create('location', r.row['location'], geo=True).run(conn)
+    r.table(table_name).index_create('timestamp', r.row['timestamp']).run(conn)
+
+
+def setup_vehicle_stop_times(conn):
+    table_name = 'vehicle_stop_times'
+    print 'Bootstrapping the {} table.'.format(table_name)
+
+    if not _table_exists(conn, table_name):
+        r.db(DB_NAME).table_create(table_name).run(conn)
+    else:
+        print 'Table {} already exists, skipping'.format(table_name)
+
+    r.table(table_name).index_create('location', r.row['location'], geo=True).run(conn)
+    r.table(table_name).index_create('timestamp', r.row['timestamp']).run(conn)
 
 
 if __name__ == '__main__':
-    conn = r.connect('localhost', 28015)
-    conn.use('capmetro')
-    routes_data = fetch_routes(conn)
-    fetch_stops(conn, routes_data)
+    host_addr = os.environ.get('CMDATA_DBADDR') or 'localhost'
+    conn = r.connect(host_addr, 28015)
+    conn.use(DB_NAME)
+
+    print 'Bootstrapping the {} database.'.format(DB_NAME)
+    if DB_NAME not in r.db_list().run(conn):
+        r.db_create(DB_NAME).run(conn)
+
+    routes_data = setup_routes(conn)
+    setup_stops(conn, routes_data)
+    setup_vehicle_positions(conn)
+    setup_vehicle_stop_times(conn)
+    conn.close()
