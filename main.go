@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"sync"
 	"time"
@@ -22,6 +23,7 @@ var (
 // Config contains all configuration
 type Config struct {
 	DbName, DbAddr, DbPort  string
+	CronitorURL             string
 	MaxDistance, MaxRetries int
 }
 
@@ -59,6 +61,15 @@ func main() {
 	var wg sync.WaitGroup
 
 	for {
+		// Notify Cronitor
+		go func() {
+			res, err := http.Get(config.CronitorURL)
+			if err != nil {
+				errlogger.Println(err)
+			}
+			res.Body.Close()
+		}()
+
 		session, err := r.Connect(connOpts)
 		if err != nil {
 			errlogger.Fatal(err)
