@@ -95,8 +95,7 @@ def _get_stop_times_by_vehicle(vehicle, stop_start, stop_end, route, direction, 
 
 if __name__ == '__main__':
     import os
-    host_addr = os.environ.get('RETHINKDB_ADDR') or 'localhost'
+    host_addr = os.environ.get('CMDATA_DBADDR') or 'localhost'
     conn = r.connect(host_addr, 28015)
     conn.repl()
     conn.use('capmetro')
-

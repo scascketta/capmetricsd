@@ -22,14 +22,18 @@ def _table_exists(conn, table):
     return table in r.table_list().run(conn)
 
 
+def _create_table_if_not_exists(conn, table):
+    print 'Bootstrapping the {} table.'.format(table)
+
+    if not _table_exists(conn, table):
+        r.db(DB_NAME).table_create(table).run(conn)
+    else:
+        print 'Table {} already exists, skipping'.format(table)
+
+
 def setup_routes(conn, url=ROUTES_URL):
     table_name = 'routes'
-    print 'Bootstrapping the {} table.'.format(table_name)
-
-    if not _table_exists(conn, table_name):
-        r.db(DB_NAME).table_create(table_name).run(conn)
-    else:
-        print 'Table {} already exists, skipping'.format(table_name)
+    _create_table_if_not_exists(conn, table_name)
 
     routes_data = requests.get(url).json()
 
@@ -48,12 +52,8 @@ def setup_routes(conn, url=ROUTES_URL):
 
 def setup_stops(conn, routes_data):
     table_name = 'stops'
-    print 'Bootstrapping the {} table.'.format(table_name)
-
-    if not _table_exists(conn, table_name):
-        r.db(DB_NAME).table_create(table_name).run(conn)
-    else:
-        print 'Table {} already exists, skipping'.format(table_name)
+    _create_table_if_not_exists(conn, table_name)
+    r.table(table_name).index_create('location', r.row['location'], geo=True).run(conn)
 
     all_stops = []
     for route in routes_data:
@@ -81,29 +81,26 @@ def setup_stops(conn, routes_data):
 
 def setup_vehicle_positions(conn):
     table_name = 'vehicle_position'
-    print 'Bootstrapping the {} table.'.format(table_name)
+    _create_table_if_not_exists(conn, table_name)
 
-    if not _table_exists(conn, table_name):
-        r.db(DB_NAME).table_create(table_name).run(conn)
-    else:
-        print 'Table {} already exists, skipping'.format(table_name)
-
-    r.table(table_name).index_create('vehicle_timestamp', [r.row['vehicle_id'], r.row['timestamp']]).run(conn)
     r.table(table_name).index_create('location', r.row['location'], geo=True).run(conn)
     r.table(table_name).index_create('timestamp', r.row['timestamp']).run(conn)
+    r.table(table_name).index_create('vehicle_timestamp', [r.row['vehicle_id'], r.row['timestamp']]).run(conn)
 
 
 def setup_vehicle_stop_times(conn):
     table_name = 'vehicle_stop_times'
-    print 'Bootstrapping the {} table.'.format(table_name)
+    _create_table_if_not_exists(conn, table_name)
 
-    if not _table_exists(conn, table_name):
-        r.db(DB_NAME).table_create(table_name).run(conn)
-    else:
-        print 'Table {} already exists, skipping'.format(table_name)
-
-    r.table(table_name).index_create('location', r.row['location'], geo=True).run(conn)
+    r.table(table_name).index_create('stop_id', r.row['stop_id']).run(conn)
     r.table(table_name).index_create('timestamp', r.row['timestamp']).run(conn)
+
+
+def setup_vehicles(conn):
+    table_name = 'vehicles'
+    _create_table_if_not_exists(conn, table_name)
+
+    r.table(table_name).index_create('vehicle_id', r.row['vehicle_id']).run(conn)
 
 
 if __name__ == '__main__':
@@ -117,6 +114,7 @@ if __name__ == '__main__':
 
     routes_data = setup_routes(conn)
     setup_stops(conn, routes_data)
+    setup_vehicles(conn)
     setup_vehicle_positions(conn)
     setup_vehicle_stop_times(conn)
     conn.close()

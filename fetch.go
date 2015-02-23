@@ -111,10 +111,9 @@ func checkNewVehicles(session *r.Session) error {
 	}
 	cur.All(&vehicles)
 
-	for _, data := range vehicles {
-		id := data["vehicle_id"]
+	for _, vehicle := range vehicles {
 		stream := r.Table("vehicles").Pluck("vehicle_id")
-		expr := r.Expr(map[string]string{"vehicle_id": data["vehicle_id"]})
+		expr := r.Expr(map[string]string{"vehicle_id": vehicle["vehicle_id"]})
 		cur, err = stream.Contains(expr).Run(session)
 		if err != nil {
 			return err
@@ -124,12 +123,12 @@ func checkNewVehicles(session *r.Session) error {
 		cur.Next(&res)
 		if !res {
 			newVehicles++
-			dbglogger.Printf("Adding new vehicle %s to vehicles table.\n", id)
+			dbglogger.Printf("Adding new vehicle %s to vehicles table.\n", vehicle["vehicle_id"])
 			vehicle := Vehicle{
-				VehicleID:    data["vehicle_id"],
-				Route:        data["route"],
-				RouteID:      data["route_id"],
-				TripID:       data["trip_id"],
+				VehicleID:    vehicle["vehicle_id"],
+				Route:        vehicle["route"],
+				RouteID:      vehicle["route_id"],
+				TripID:       vehicle["trip_id"],
 				LastAnalyzed: time.Now(),
 			}
 			_, err := r.Table("vehicles").Insert(r.Expr(vehicle)).Run(session)
@@ -187,7 +186,7 @@ func MakeVehicleStopTimes(session *r.Session) error {
 		dbglogger.Printf("Processing %d positions for vehicle %s after %s.\n", len(positions), vehicle.VehicleID, vehicle.LastAnalyzed.Format("2006-01-02T15:04:05-07:00"))
 		for _, position := range positions {
 
-			// find the closest stop within 100m for each position (if any)
+			// find the closest stop within `config.MaxDistance` meters for each position (if any)
 			stops := []map[string]interface{}{}
 			gnOpts := r.GetNearestOpts{Index: "location", MaxDist: config.MaxDistance, MaxResults: 1}
 			query := r.Table("stops").GetNearest(position["location"], gnOpts)
@@ -215,11 +214,12 @@ func MakeVehicleStopTimes(session *r.Session) error {
 				MaxDistance: config.MaxDistance,
 			}
 
-			if len(stopTimes) > 0 && stopTimes[len(stopTimes)-1].StopID == stopTime.StopID {
+			lastInd := len(stopTimes) - 1
+			if len(stopTimes) > 0 && stopTimes[lastInd].StopID == stopTime.StopID {
 				// Replace most recent stopTime if current stopTime has earlier timestamp
 				// We want to avoid duplicate stopTimes and in the case of duplicate, use the earlier stopTime
-				if stopTime.Time.Before(stopTimes[len(stopTimes)-1].Time) {
-					stopTimes[len(stopTimes)-1] = stopTime
+				if stopTime.Time.Before(stopTimes[lastInd].Time) {
+					stopTimes[lastInd] = stopTime
 				}
 				continue
 			} else {
@@ -242,5 +242,7 @@ func MakeVehicleStopTimes(session *r.Session) error {
 			return err
 		}
 	}
+
+	dbglogger.Println("Finish making vehicle stop times")
 	return nil
 }

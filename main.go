@@ -66,8 +66,9 @@ func main() {
 			res, err := http.Get(config.CronitorURL)
 			if err != nil {
 				errlogger.Println(err)
+			} else {
+				res.Body.Close()
 			}
-			res.Body.Close()
 		}()
 
 		session, err := r.Connect(connOpts)
