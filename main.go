@@ -39,7 +39,6 @@ func main() {
 		if err != nil {
 			errlogger.Fatal(err)
 		}
-		defer session.Close()
 
 		// log new vehicle positions
 		wg.Add(1)
@@ -81,7 +80,7 @@ func main() {
 			dbglogger.Println("Sleeping for normal duration!")
 			duration = normalDuration
 		}
-
+		session.Close()
 		time.Sleep(duration)
 		dbglogger.Println("Wake up!")
 	}
