@@ -16,7 +16,6 @@ var (
 	dbglogger = log.New(os.Stdout, "[DBG] ", log.LstdFlags|log.Lshortfile)
 	errlogger = log.New(os.Stderr, "[ERR] ", log.LstdFlags|log.Lshortfile)
 	config    = Config{}
-	routes    = []string{"803", "801", "550"}
 )
 
 // Config contains all configuration
@@ -32,17 +31,9 @@ func main() {
 	}
 	dbglogger.Println("Config:", config)
 	connOpts := r.ConnectOpts{Address: fmt.Sprintf("%s:%s", config.DbAddr, config.DbPort), Database: config.DbName}
-
-	// initialize current fetch retries to 0
-	for _, route := range routes {
-		emptyResponses[route] = 1
-		recentEmptyResponse[route] = false
-	}
-
 	dbglogger.Printf("Established connection to RethinkDB server at %s.\n", connOpts.Address)
 
 	var wg sync.WaitGroup
-
 	for {
 		session, err := r.Connect(connOpts)
 		if err != nil {
@@ -51,21 +42,10 @@ func main() {
 		defer session.Close()
 
 		// log new vehicle positions
-		for _, route := range routes {
-			wg.Add(1)
-			go func(session *r.Session, route string) {
-				err = LogVehicleLocations(session, route)
-				if err != nil {
-					errlogger.Println(err)
-				}
-				wg.Done()
-			}(session, route)
-		}
-
 		wg.Add(1)
 		go func(session *r.Session) {
-			dbglogger.Println("Make vehicle stop times")
-			if err := MakeVehicleStopTimes(session); err != nil {
+			err = LogVehicleLocations(session)
+			if err != nil {
 				errlogger.Println(err)
 			}
 			wg.Done()
