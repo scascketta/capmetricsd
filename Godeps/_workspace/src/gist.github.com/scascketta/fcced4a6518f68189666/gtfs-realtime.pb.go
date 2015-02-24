@@ -3,10 +3,10 @@
 // DO NOT EDIT!
 
 /*
-Package main is a generated protocol buffer package.
+Package gtfs_realtime is a generated protocol buffer package.
 
 It is generated from these files:
-    gtfs-realtime.proto
+    gtfs_realtime.proto
 
 It has these top-level messages:
     FeedMessage
@@ -22,7 +22,7 @@ It has these top-level messages:
     EntitySelector
     TranslatedString
 */
-package main
+package gtfs_realtime
 
 import proto "github.com/scascketta/capmetro-data/Godeps/_workspace/src/github.com/golang/protobuf/proto"
 import math "math"

@@ -1,12 +1,12 @@
 package main
 
 import (
+	gtfsrt "github.com/scascketta/capmetro-data/Godeps/_workspace/src/gist.github.com/scascketta/fcced4a6518f68189666"
+	r "github.com/scascketta/capmetro-data/Godeps/_workspace/src/github.com/dancannon/gorethink"
+	"github.com/scascketta/capmetro-data/Godeps/_workspace/src/github.com/golang/protobuf/proto"
 	"io/ioutil"
 	"net/http"
 	"time"
-
-	r "github.com/scascketta/capmetro-data/Godeps/_workspace/src/github.com/dancannon/gorethink"
-	"github.com/scascketta/capmetro-data/Godeps/_workspace/src/github.com/golang/protobuf/proto"
 )
 
 // Vehicle describes a transit vehicle.
@@ -54,7 +54,7 @@ func FetchVehicles() (map[string]RouteLocations, error) {
 		return nil, err
 	}
 	b, _ := ioutil.ReadAll(res.Body)
-	fm := new(FeedMessage)
+	fm := new(gtfsrt.FeedMessage)
 	err = proto.Unmarshal(b, fm)
 	var locations []VehicleLocation
 	for _, entity := range fm.GetEntity() {
