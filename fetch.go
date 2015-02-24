@@ -16,8 +16,8 @@ var (
 	normalDuration   = (30) * (1000 * time.Millisecond)
 	extendedDuration = (10 * 60) * (1000 * time.Millisecond)
 
-	emptyResponses      = map[string]int{}
-	recentEmptyResponse = map[string]bool{}
+	staleResponses      = map[string]int{}
+	recentStaleResponse = map[string]bool{}
 )
 
 // FilterUpdatedVehicles returns the VehicleLocation structs whose timestamp has
@@ -35,16 +35,16 @@ func FilterUpdatedVehicles(vehicles []VehicleLocation) []VehicleLocation {
 }
 
 func prepRoute(route string) {
-	if _, ok := emptyResponses[route]; !ok {
-		emptyResponses[route] = 1
+	if _, ok := staleResponses[route]; !ok {
+		staleResponses[route] = 1
 	}
-	if _, ok := recentEmptyResponse[route]; !ok {
-		recentEmptyResponse[route] = false
+	if _, ok := recentStaleResponse[route]; !ok {
+		recentStaleResponse[route] = false
 	}
 }
 
 // LogVehicleLocations fetches vehicle locations from CapMetro and inserts new
-// locations into the database. It also tracks empty responses to determine when
+// locations into the database. It also tracks stale responses to determine when
 //  to sleep.
 func LogVehicleLocations(session *r.Session) error {
 	locationsByRoute, err := FetchVehicles()
@@ -55,19 +55,18 @@ func LogVehicleLocations(session *r.Session) error {
 	for route, rl := range locationsByRoute {
 		prepRoute(route)
 
-		if len(rl.Locations) == 0 {
-			// increment retry count if fetch just before was also empty
-			// only subsequent empty responses matter when determining how long to sleep
-			if recentEmptyResponse[route] {
-				emptyResponses[route]++
+		updated := FilterUpdatedVehicles(rl.Locations)
+		if len(updated) == 0 {
+			// increment retry count if fetch just before was also stale
+			// only subsequent stale responses matter when determining how long to sleep
+			if recentStaleResponse[route] {
+				staleResponses[route]++
 			}
-			recentEmptyResponse[route] = true
+			recentStaleResponse[route] = true
 			dbglogger.Printf("No vehicles in response for route: %s.", route)
 			continue
 		}
-		recentEmptyResponse[route] = false
-
-		updated := FilterUpdatedVehicles(rl.Locations)
+		recentStaleResponse[route] = false
 
 		for _, v := range updated {
 			dbglogger.Printf("Vehicle %s updated at %s\n", v.VehicleID, v.Time.Format("2006-01-02T15:04:05-07:00"))
@@ -90,9 +89,9 @@ func LogVehicleLocations(session *r.Session) error {
 // There must have been MAX_RETRIES previous attempts to fetch data,
 // and all attempts must have failed
 func routesAreSleeping() bool {
-	dbglogger.Println("emptyResponses:", emptyResponses)
-	dbglogger.Println("recentEmptyResponse:", recentEmptyResponse)
-	for _, retries := range emptyResponses {
+	dbglogger.Println("staleResponses:", staleResponses)
+	dbglogger.Println("recentStaleResponse:", recentStaleResponse)
+	for _, retries := range staleResponses {
 		if retries < config.MaxRetries {
 			return false
 		}

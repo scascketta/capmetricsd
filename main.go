@@ -72,8 +72,8 @@ func main() {
 		// if no vehicles were received from capmetro MAX_RETRIES in a row, sleep longer
 		var duration time.Duration
 		if routesAreSleeping() {
-			for k := range emptyResponses {
-				emptyResponses[k] = 0
+			for k := range staleResponses {
+				staleResponses[k] = 0
 			}
 			dbglogger.Println("Sleeping for extended duration!")
 			duration = extendedDuration

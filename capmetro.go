@@ -26,6 +26,7 @@ type VehicleLocation struct {
 	Speed     float32   `gorethink:"speed"`     // instantaneous speed
 	RouteID   string    `gorethink:"route_id"`  // 80X
 	TripID    string    `gorethink:"trip_id"`   // trip id for machines
+	Bearing   float32   `gorethink:"bearing"`
 	Location  r.Term    `gorethink:"location"`
 }
 
@@ -64,6 +65,7 @@ func FetchVehicles() (map[string]RouteLocations, error) {
 			VehicleID: vehicle.GetVehicle().GetId(),
 			Time:      time.Unix(int64(vehicle.GetTimestamp()), 0),
 			Speed:     position.GetSpeed(),
+			Bearing:   position.GetBearing(),
 			RouteID:   trip.GetRouteId(),
 			TripID:    trip.GetTripId(),
 			Location:  r.Point(position.GetLongitude(), position.GetLatitude()),
