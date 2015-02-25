@@ -8,7 +8,7 @@ import (
 
 	"github.com/scascketta/capmetro-data/Godeps/_workspace/src/github.com/dancannon/gorethink/encoding"
 
-	"code.google.com/p/goprotobuf/proto"
+	"github.com/scascketta/capmetro-data/Godeps/_workspace/src/code.google.com/p/goprotobuf/proto"
 	p "github.com/scascketta/capmetro-data/Godeps/_workspace/src/github.com/dancannon/gorethink/ql2"
 )
 

@@ -1,102 +1,93 @@
 package main
 
 import (
-	"encoding/xml"
+	gtfsrt "github.com/scascketta/capmetro-data/Godeps/_workspace/src/gist.github.com/scascketta/fcced4a6518f68189666"
+	"github.com/scascketta/capmetro-data/Godeps/_workspace/src/github.com/golang/protobuf/proto"
 	"io/ioutil"
 	"net/http"
-	"strconv"
-	"strings"
 	"time"
 
 	r "github.com/scascketta/capmetro-data/Godeps/_workspace/src/github.com/dancannon/gorethink"
 )
 
-// Vehicle contains information about a unique vehicle and time cursors for analysis (like last_analyzed)
+// Vehicle describes a transit vehicle.
 type Vehicle struct {
 	ID           string    `gorethink:"id,omitempty"`
 	VehicleID    string    `gorethink:"vehicle_id"`
-	Route        string    `gorethink:"route"`         // 80X
+	Route        string    `gorethink:"route"`         // human_readable route string
 	RouteID      string    `gorethink:"route_id"`      // route id for machines
 	TripID       string    `gorethink:"trip_id"`       // trip id for machines
 	LastAnalyzed time.Time `gorethink:"last_analyzed"` // last time vehicle was analyzed for stop times
 }
 
-// VehiclePosition assigns a location for a vehicle at a certain time
-type VehiclePosition struct {
+// VehicleLocation is the recorded location of a vehicle at an instance in time.
+type VehicleLocation struct {
 	VehicleID string    `gorethink:"vehicle_id"`
-	Direction string    `gorethink:"direction"` // N/S
 	Time      time.Time `gorethink:"timestamp"` // should be time position data was logged
-	Speed     float64   `gorethink:"speed"`     // instantaneous speed
-	Heading   int64     `gorethink:"heading"`   // heading in degrees
-	Route     string    `gorethink:"route"`     // 80X
-	RouteID   string    `gorethink:"route_id"`  // route id for machines
+	Speed     float32   `gorethink:"speed"`     // instantaneous speed
+	RouteID   string    `gorethink:"route_id"`  // 80X
 	TripID    string    `gorethink:"trip_id"`   // trip id for machines
+	Bearing   float32   `gorethink:"bearing"`
 	Location  r.Term    `gorethink:"location"`
 }
 
-type xmlVehicle struct {
-	VehicleID string   `xml:"Vehicleid"`
-	Direction string   `xml:"Direction"`
-	Time      string   `xml:"Updatetime"`
-	Speed     float64  `xml:"Speed"`
-	Heading   string   `xml:"Heading"`
-	Route     string   `xml:"Route"`
-	RouteID   string   `xml:"Routeid"`
-	TripID    string   `xml:"Tripid"`
-	Positions []string `xml:"Positions>Position"`
+// RouteLocations contains vehicle locations on a certain route.
+type RouteLocations struct {
+	Route     string
+	Locations []VehicleLocation
+	Updated   bool
+	Empty     bool
 }
 
-type xmlVehicles struct {
-	Route    string       `xml:"Body>BuslocationResponse>Input>Route"`
-	Vehicles []xmlVehicle `xml:"Body>BuslocationResponse>Vehicles>Vehicle"`
+// NewRouteLocations returns a new RouteLocations struct with the given route.
+func NewRouteLocations(route string) RouteLocations {
+	var rl RouteLocations
+	rl.Locations = make([]VehicleLocation, 0)
+	rl.Route = route
+	rl.Updated = false
+	return rl
 }
 
-// FetchVehicles fetches the latest VehiclePositions moving in any direction on the specified route
-func FetchVehicles(route string) ([]VehiclePosition, error) {
-	res, err := http.Get("http://www.capmetro.org/planner/s_buslocation.asp?route=" + route)
+// FetchVehicles fetches vehicle locations and returns RouteLocations sorted by route and an error, if any.
+func FetchVehicles() (map[string]RouteLocations, error) {
+	res, err := http.Get("https://data.texas.gov/download/i5qp-g5fd/application/octet-stream")
 	if err != nil {
 		return nil, err
 	}
 	b, _ := ioutil.ReadAll(res.Body)
-
-	var data xmlVehicles
-	err = xml.Unmarshal(b, &data)
-	if err != nil {
-		errlogger.Println(err)
-		return nil, err
-	}
-
-	var vehicles []VehiclePosition
-	for _, v := range data.Vehicles {
-		updateTime, err := parseUpdateTime(v.Time)
-		if err != nil {
-			return nil, err
+	fm := new(gtfsrt.FeedMessage)
+	err = proto.Unmarshal(b, fm)
+	var locations []VehicleLocation
+	for _, entity := range fm.GetEntity() {
+		vehicle := entity.GetVehicle()
+		trip := vehicle.GetTrip()
+		position := vehicle.GetPosition()
+		vl := VehicleLocation{
+			VehicleID: vehicle.GetVehicle().GetId(),
+			Time:      time.Unix(int64(vehicle.GetTimestamp()), 0),
+			Speed:     position.GetSpeed(),
+			Bearing:   position.GetBearing(),
+			RouteID:   trip.GetRouteId(),
+			TripID:    trip.GetTripId(),
+			Location:  r.Point(position.GetLongitude(), position.GetLatitude()),
 		}
-		heading, _ := strconv.ParseInt(v.Heading, 10, 64)
-		heading *= 10
-		latLon := strings.Split(v.Positions[0], ",")
-		lat, _ := strconv.ParseFloat(latLon[0], 64)
-		long, _ := strconv.ParseFloat(latLon[1], 64)
-		vp := VehiclePosition{
-			VehicleID: v.VehicleID,
-			Direction: v.Direction,
-			Route:     v.Route,
-			RouteID:   v.RouteID,
-			TripID:    v.TripID,
-			Time:      updateTime,
-			Speed:     v.Speed,
-			Heading:   heading,
-			Location:  r.Point(long, lat),
-		}
-		vehicles = append(vehicles, vp)
+		locations = append(locations, vl)
 	}
-	return vehicles, err
+	vehiclesByRoute := sortVehicles(locations)
+	return vehiclesByRoute, err
 }
 
-func parseUpdateTime(updatetime string) (time.Time, error) {
-	now := time.Now()
-	loc, _ := time.LoadLocation("America/Chicago")
-	parsed, err := time.Parse("03:04 PM", updatetime)
-	date := time.Date(now.Year(), now.Month(), now.Day(), parsed.Hour(), parsed.Minute(), 0, 0, loc)
-	return date, err
+// sortVehicles returns the given vehicles sorted by route
+func sortVehicles(locations []VehicleLocation) map[string]RouteLocations {
+	sorted := make(map[string]RouteLocations)
+	for _, loc := range locations {
+		route := loc.RouteID
+		rl, ok := sorted[route]
+		if !ok {
+			rl = NewRouteLocations(route)
+		}
+		rl.Locations = append(rl.Locations, loc)
+		sorted[route] = rl
+	}
+	return sorted
 }

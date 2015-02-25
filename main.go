@@ -17,7 +17,6 @@ var (
 	dbglogger = log.New(os.Stdout, "[DBG] ", log.LstdFlags|log.Lshortfile)
 	errlogger = log.New(os.Stderr, "[ERR] ", log.LstdFlags|log.Lshortfile)
 	config    = Config{}
-	routes    = []string{"803", "801", "550"}
 )
 
 // Config contains all configuration
@@ -34,32 +33,9 @@ func main() {
 	}
 	dbglogger.Println("Config:", config)
 	connOpts := r.ConnectOpts{Address: fmt.Sprintf("%s:%s", config.DbAddr, config.DbPort), Database: config.DbName}
-
-	// initialize current fetch retries to 0
-	for _, route := range routes {
-		emptyResponses[route] = 1
-		recentEmptyResponse[route] = false
-	}
-
 	dbglogger.Printf("Established connection to RethinkDB server at %s.\n", connOpts.Address)
 
-	go func() {
-		for {
-			session, err := r.Connect(connOpts)
-			if err != nil {
-				errlogger.Println(err)
-			}
-			dbglogger.Println("Make vehicle stop times")
-			if err := MakeVehicleStopTimes(session); err != nil {
-				errlogger.Println(err)
-			}
-			session.Close()
-			time.Sleep(2 * time.Minute)
-		}
-	}()
-
 	var wg sync.WaitGroup
-
 	for {
 		// Notify Cronitor
 		go func() {
@@ -77,16 +53,14 @@ func main() {
 		}
 
 		// log new vehicle positions
-		for _, route := range routes {
-			wg.Add(1)
-			go func(session *r.Session, route string) {
-				err = LogVehiclePositions(session, route)
-				if err != nil {
-					errlogger.Println(err)
-				}
-				wg.Done()
-			}(session, route)
-		}
+		wg.Add(1)
+		go func(session *r.Session) {
+			err = LogVehicleLocations(session)
+			if err != nil {
+				errlogger.Println(err)
+			}
+			wg.Done()
+		}(session)
 
 		// check for new vehicles if after next check time, add new ones
 		// (added eventually, not necessarily as soon as a new vehicle appears in vehicle_positions table)
@@ -109,8 +83,8 @@ func main() {
 		// if no vehicles were received from capmetro MAX_RETRIES in a row, sleep longer
 		var duration time.Duration
 		if routesAreSleeping() {
-			for k := range emptyResponses {
-				emptyResponses[k] = 0
+			for k := range staleResponses {
+				staleResponses[k] = 0
 			}
 			dbglogger.Println("Sleeping for extended duration!")
 			duration = extendedDuration
@@ -118,7 +92,6 @@ func main() {
 			dbglogger.Println("Sleeping for normal duration!")
 			duration = normalDuration
 		}
-
 		session.Close()
 		time.Sleep(duration)
 		dbglogger.Println("Wake up!")
