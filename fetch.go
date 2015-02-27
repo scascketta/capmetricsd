@@ -9,7 +9,6 @@ import (
 var (
 	lastUpdated = map[string]time.Time{}
 
-	firstNewVehicleCheck = true
 	nextNewVehicleCheck  = time.Now()
 	vehicleCheckInterval = 4 * time.Hour
 
@@ -48,7 +47,10 @@ func prepRoute(route string) {
 // LogVehicleLocations fetches vehicle locations from CapMetro and inserts new
 // locations into the database. It also tracks stale responses to determine when
 //  to sleep.
-func LogVehicleLocations(session *r.Session) error {
+func LogVehicleLocations() error {
+	session := setupConn()
+	defer session.Close()
+
 	locationsByRoute, err := FetchVehicles()
 	if err != nil {
 		return err
@@ -65,13 +67,13 @@ func LogVehicleLocations(session *r.Session) error {
 				staleResponses[route]++
 			}
 			recentStaleResponse[route] = true
-			dbglogger.Printf("No vehicles in response for route: %s.", route)
+			dlog.Printf("No vehicles in response for route: %s.", route)
 			continue
 		}
 		recentStaleResponse[route] = false
 
 		for _, v := range updated {
-			dbglogger.Printf("Vehicle %s updated at %s\n", v.VehicleID, v.Time.Format("2006-01-02T15:04:05-07:00"))
+			dlog.Printf("Vehicle %s updated at %s\n", v.VehicleID, v.Time.Format("2006-01-02T15:04:05-07:00"))
 		}
 
 		if len(updated) > 0 {
@@ -79,9 +81,9 @@ func LogVehicleLocations(session *r.Session) error {
 			if err != nil {
 				return err
 			}
-			dbglogger.Printf("Log %d vehicles, route %s.\n", len(updated), route)
+			dlog.Printf("Log %d vehicles, route %s.\n", len(updated), route)
 		} else {
-			dbglogger.Printf("No new vehicle positions to record for route %s.\n", route)
+			dlog.Printf("No new vehicle positions to record for route %s.\n", route)
 		}
 	}
 	return nil
@@ -91,10 +93,10 @@ func LogVehicleLocations(session *r.Session) error {
 // There must have been MAX_RETRIES previous attempts to fetch data,
 // and all attempts must have failed
 func routesAreSleeping() bool {
-	dbglogger.Println("staleResponses:", staleResponses)
-	dbglogger.Println("recentStaleResponse:", recentStaleResponse)
+	dlog.Println("staleResponses:", staleResponses)
+	dlog.Println("recentStaleResponse:", recentStaleResponse)
 	for _, retries := range staleResponses {
-		if retries < config.MaxRetries {
+		if retries < cfg.MaxRetries {
 			return false
 		}
 	}
@@ -102,9 +104,12 @@ func routesAreSleeping() bool {
 }
 
 // Check if any new vehicles appear in recorded vehicle positions, add them to vehicles table
-func checkNewVehicles(session *r.Session) error {
+func checkNewVehicles() error {
+	session := setupConn()
+	defer session.Close()
+
 	newVehicles := 0
-	dbglogger.Println("Check for new vehicles.")
+	dlog.Println("Check for new vehicles.")
 	vehicles := []map[string]string{}
 	cur, err := r.Table("vehicle_position").Pluck("vehicle_id", "route", "route_id", "trip_id").Distinct().Run(session)
 	if err != nil {
@@ -124,7 +129,7 @@ func checkNewVehicles(session *r.Session) error {
 		cur.Next(&res)
 		if !res {
 			newVehicles++
-			dbglogger.Printf("Adding new vehicle %s to vehicles table.\n", vehicle["vehicle_id"])
+			dlog.Printf("Adding new vehicle %s to vehicles table.\n", vehicle["vehicle_id"])
 			vehicle := Vehicle{
 				VehicleID:    vehicle["vehicle_id"],
 				Route:        vehicle["route"],
@@ -139,6 +144,8 @@ func checkNewVehicles(session *r.Session) error {
 		}
 	}
 
-	dbglogger.Printf("Inserted %d new vehicles.\n", newVehicles)
+	dlog.Printf("Inserted %d new vehicles.\n", newVehicles)
+	nextNewVehicleCheck = time.Now().Add(vehicleCheckInterval)
+	dlog.Println("Next check for new vehicles scheduled at:", nextNewVehicleCheck)
 	return nil
 }

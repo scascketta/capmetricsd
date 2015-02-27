@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"reflect"
 	"sync"
 	"time"
 
@@ -13,87 +14,110 @@ import (
 )
 
 var (
-	session   *r.Session
-	dbglogger = log.New(os.Stdout, "[DBG] ", log.LstdFlags|log.Lshortfile)
-	errlogger = log.New(os.Stderr, "[ERR] ", log.LstdFlags|log.Lshortfile)
-	config    = Config{}
+	s    *r.Session
+	dlog = log.New(os.Stdout, "[DBG] ", log.LstdFlags|log.Lshortfile)
+	elog = log.New(os.Stderr, "[ERR] ", log.LstdFlags|log.Lshortfile)
+	cfg  = config{}
 )
 
-// Config contains all configuration
-type Config struct {
-	DbName, DbAddr, DbPort  string
-	CronitorURL             string
-	MaxDistance, MaxRetries int
+type config struct {
+	DbName, DbAddr, DbPort string
+	CronitorURL            string
+	MaxRetries             int
+}
+
+// RepeatTask calls Func at every Interval
+type RepeatTask struct {
+	Func     func() error
+	Interval time.Duration
+	Name     string
+}
+
+func (rt *RepeatTask) Run() {
+	dlog.Println("Running task:", rt.Name)
+	err := rt.Func()
+	if err != nil {
+		elog.Printf("[ERROR:%s]: %s\n", rt.Name, err.Error())
+	}
+}
+
+func runTasksOnce(tasks []RepeatTask) {
+	var wg sync.WaitGroup
+	for _, t := range tasks {
+		wg.Add(1)
+		go func(t RepeatTask) {
+			t.Run()
+			wg.Done()
+		}(t)
+	}
+	wg.Wait()
+}
+
+func setupConn() *r.Session {
+	s, err := r.Connect(r.ConnectOpts{Address: fmt.Sprintf("%s:%s", cfg.DbAddr, cfg.DbPort), Database: cfg.DbName})
+	if err != nil {
+		elog.Fatal(err)
+	}
+	return s
+}
+
+// DynamicRepeatTask calls a RepeatTask.Func at every Interval which can be modified by UpdateInterval
+type DynamicRepeatTask struct {
+	Task           RepeatTask
+	UpdateInterval func() (time.Duration, bool)
+}
+
+func cronitor() error {
+	res, err := http.Get(cfg.CronitorURL)
+	if err == nil {
+		res.Body.Close()
+	}
+	return err
 }
 
 func main() {
-	err := envconfig.Process("cmdata", &config)
+	err := envconfig.Process("cmdata", &cfg)
 	if err != nil {
-		errlogger.Fatal(err)
+		elog.Fatal(err)
 	}
-	dbglogger.Println("Config:", config)
-	connOpts := r.ConnectOpts{Address: fmt.Sprintf("%s:%s", config.DbAddr, config.DbPort), Database: config.DbName}
-	dbglogger.Printf("Established connection to RethinkDB server at %s.\n", connOpts.Address)
+	dlog.Println("config:", cfg)
+	connOpts := r.ConnectOpts{Address: fmt.Sprintf("%s:%s", cfg.DbAddr, cfg.DbPort), Database: cfg.DbName}
+	_, err = r.Connect(connOpts)
+	if err != nil {
+		elog.Fatal("Connection to RethinkDB failed: ", err)
+	} else {
+		dlog.Printf("Connection to RethinkDB at %s succeeded.\n", connOpts.Address)
+	}
 
-	var wg sync.WaitGroup
+	cronitorTask := RepeatTask{
+		Func:     cronitor,
+		Interval: 10 * time.Minute,
+		Name:     "NotifyCronitor",
+	}
+	locationTask := RepeatTask{
+		Func:     LogVehicleLocations,
+		Interval: 30 * time.Second,
+		Name:     "LogVehicleLocations",
+	}
+	vehicleTask := RepeatTask{
+		Func:     checkNewVehicles,
+		Interval: 4 * time.Hour,
+		Name:     "CheckNewVehicles",
+	}
+
+	tasks := []RepeatTask{locationTask, cronitorTask, vehicleTask}
+	runTasksOnce(tasks)
+
+	cases := make([]reflect.SelectCase, len(tasks))
+	for i, t := range tasks {
+		cases[i] = reflect.SelectCase{
+			Dir:  reflect.SelectRecv,
+			Chan: reflect.ValueOf(time.NewTicker(t.Interval).C),
+		}
+	}
+
 	for {
-		// Notify Cronitor
-		go func() {
-			res, err := http.Get(config.CronitorURL)
-			if err != nil {
-				errlogger.Println(err)
-			} else {
-				res.Body.Close()
-			}
-		}()
-
-		session, err := r.Connect(connOpts)
-		if err != nil {
-			errlogger.Fatal(err)
-		}
-
-		// log new vehicle positions
-		wg.Add(1)
-		go func(session *r.Session) {
-			err = LogVehicleLocations(session)
-			if err != nil {
-				errlogger.Println(err)
-			}
-			wg.Done()
-		}(session)
-
-		// check for new vehicles if after next check time, add new ones
-		// (added eventually, not necessarily as soon as a new vehicle appears in vehicle_positions table)
-		if firstNewVehicleCheck || time.Now().After(nextNewVehicleCheck) {
-			firstNewVehicleCheck = false
-			wg.Add(1)
-			go func() {
-				err = checkNewVehicles(session)
-				if err != nil {
-					errlogger.Println(err)
-				}
-				wg.Done()
-			}()
-			nextNewVehicleCheck = time.Now().Add(vehicleCheckInterval)
-			dbglogger.Println("Next check for new vehicles scheduled at:", nextNewVehicleCheck)
-		}
-		wg.Wait()
-
-		// determine how long to sleep
-		// if no vehicles were received from capmetro MAX_RETRIES in a row, sleep longer
-		var duration time.Duration
-		if routesAreSleeping() {
-			for k := range staleResponses {
-				staleResponses[k] = 0
-			}
-			dbglogger.Println("Sleeping for extended duration!")
-			duration = extendedDuration
-		} else {
-			dbglogger.Println("Sleeping for normal duration!")
-			duration = normalDuration
-		}
-		session.Close()
-		time.Sleep(duration)
-		dbglogger.Println("Wake up!")
+		chosen, _, _ := reflect.Select(cases)
+		go tasks[chosen].Run()
 	}
 }
