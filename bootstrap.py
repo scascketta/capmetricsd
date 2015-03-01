@@ -5,17 +5,8 @@ import requests
 import rethinkdb as r
 
 DB_NAME = 'test'
-BASE_URL = 'https://raw.githubusercontent.com/luqmaan/MetroRappid/b6b38d242bf8d248f603ea7e84af9a9110d77b18'
+BASE_URL = 'https://raw.githubusercontent.com/luqmaan/Instabus/39d10466bb47a6c95ce7e1c527724b850f0284aa'
 ROUTES_URL = BASE_URL + '/data/routes.json'
-STOP_URLS = {
-    '801_0': BASE_URL + '/data/stops_801_0.json',
-    '801_1': BASE_URL + '/data/stops_801_1.json',
-    '803_0': BASE_URL + '/data/stops_803_0.json',
-    '803_1': BASE_URL + '/data/stops_803_1.json',
-    '550_0': BASE_URL + '/data/stops_550_0.json',
-    '550_1': BASE_URL + '/data/stops_550_1.json'
-}
-BACKWARDS_ROUTES = [550]
 
 
 def _table_exists(conn, table):
@@ -37,13 +28,10 @@ def setup_routes(conn, url=ROUTES_URL):
 
     routes_data = requests.get(url).json()
 
-    # Add consistent direction field
+    # Make direction field consistent
     for route in routes_data:
         for d in route['directions']:
-            dir_id = d['direction_id']
-            d['direction'] = 'N' if dir_id == 0 else 'S'
-            if route['route_id'] in BACKWARDS_ROUTES:
-                d['direction'] = 'N' if dir_id == 1 else 'S'
+            d['direction'] = d['headsign'][0]
 
     r.table('routes').insert(routes_data).run(conn)
 
@@ -58,25 +46,39 @@ def setup_stops(conn, routes_data):
     all_stops = []
     for route in routes_data:
         for direction in route['directions']:
-            route_direction = str(route['route_id']) + '_' + str(direction['direction_id'])
-            stops_data = requests.get(STOP_URLS[route_direction]).json()
+            # route_direction = str(route['route_id']) + '_' + str(direction['direction_id'])
+            stop_url = '{}/data/stops_{}_{}.json'.format(BASE_URL, route['route_id'], direction['direction_id'])
+            stops_data = requests.get(stop_url).json()
 
             for stop in stops_data:
-                # Add consistent direction field
-                dir_id = stop['direction_id']
-                stop['direction'] = 'N' if dir_id == 0 else 'S'
-                if stop['route_id'] in BACKWARDS_ROUTES:
-                    stop['direction'] = 'N' if dir_id == 1 else 'S'
-
-                # add location as geojson
+                # add location as rethink geo point
                 stop['location'] = r.point(stop['stop_lon'], stop['stop_lat'])
-
                 # too similar to location.type attr in rethinkdb
                 del stop['location_type']
 
             all_stops.extend(stops_data)
 
     r.table(table_name).insert(all_stops).run(conn)
+
+
+def setup_shapes(conn, routes_data):
+    table_name = 'shapes'
+    _create_table_if_not_exists(conn, table_name)
+    r.table(table_name).index_create('location', r.row['location'], geo=True).run(conn)
+
+    all_shapes = []
+    for route in routes_data:
+        for direction in route['directions']:
+            stop_url = '{}/data/shapes_{}_{}.json'.format(BASE_URL, route['route_id'], direction['direction_id'])
+            shapes_data = requests.get(stop_url).json()
+
+            for shape in shapes_data:
+                # add location as rethink geo point
+                shape['location'] = r.point(shape['shape_pt_lon'], shape['shape_pt_lat'])
+
+            all_shapes.extend(shapes_data)
+
+    r.table(table_name).insert(all_shapes).run(conn)
 
 
 def setup_vehicle_positions(conn):
@@ -86,6 +88,7 @@ def setup_vehicle_positions(conn):
     r.table(table_name).index_create('location', r.row['location'], geo=True).run(conn)
     r.table(table_name).index_create('timestamp', r.row['timestamp']).run(conn)
     r.table(table_name).index_create('vehicle_timestamp', [r.row['vehicle_id'], r.row['timestamp']]).run(conn)
+    r.table(table_name).index_create('route_timestamp', [r.row['route_id'], r.row['timestamp']]).run(conn)
 
 
 def setup_vehicle_stop_times(conn):
@@ -103,6 +106,17 @@ def setup_vehicles(conn):
     r.table(table_name).index_create('vehicle_id', r.row['vehicle_id']).run(conn)
 
 
+def _create_index_if_not_exists(conn, table, index, args, kwargs):
+        if index not in r.table(table).index_list().run(conn):
+            r.table(table).index_create(*args, **kwargs).run(conn)
+
+def setup_indexes(conn):
+    _create_index_if_not_exists(conn, 'vehicle_position', 'location', ['location', r.row['location']], {'geo':True})
+    _create_index_if_not_exists(conn, 'vehicle_position', 'timestamp', ['timestamp', r.row['timestamp']], {})
+    _create_index_if_not_exists(conn, 'vehicle_position', 'vehicle_timestamp', ['vehicle_timestamp', [r.row['vehicle_id'], r.row['timestamp']]], {})
+    _create_index_if_not_exists(conn, 'vehicle_position', 'route_timestamp', ['route_timestamp', [r.row['route_id'], r.row['timestamp']]], {})
+
+
 if __name__ == '__main__':
     host_addr = os.environ.get('CMDATA_DBADDR') or 'localhost'
     conn = r.connect(host_addr, 28015)
@@ -114,6 +128,7 @@ if __name__ == '__main__':
 
     routes_data = setup_routes(conn)
     setup_stops(conn, routes_data)
+    setup_shapes(conn, routes_data)
     setup_vehicles(conn)
     setup_vehicle_positions(conn)
     setup_vehicle_stop_times(conn)

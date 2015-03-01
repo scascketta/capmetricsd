@@ -93,6 +93,13 @@ def _get_stop_times_by_vehicle(vehicle, stop_start, stop_end, route, direction, 
     return list(query.run())
 
 
+def get_vehicle_positions(vehicle_id, num):
+    return list(r.table('vehicle_position') \
+                    .get_all(vehicle_id, index='vehicle_id') \
+                    .order_by(r.desc('timestamp')) \
+                    .limit(int(num)).run())
+
+
 if __name__ == '__main__':
     import os
     host_addr = os.environ.get('CMDATA_DBADDR') or 'localhost'
