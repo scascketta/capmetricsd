@@ -1,0 +1,282 @@
+[
+    {
+        "bearing": 0,
+        "route_id": "350",
+        "speed": 20.450000762939453,
+        "trip_id": "1402213",
+        "vehicle_id": "8905"
+    },
+    {
+        "bearing": 0,
+        "route_id": "350",
+        "speed": 19.40999984741211,
+        "trip_id": "1389877",
+        "vehicle_id": "8903"
+    },
+    {
+        "bearing": 0,
+        "route_id": "803",
+        "speed": 13.859999656677246,
+        "trip_id": "1401112",
+        "vehicle_id": "5060"
+    },
+    {
+        "bearing": 0,
+        "route_id": "663",
+        "speed": 12.979999542236328,
+        "trip_id": "1396222",
+        "vehicle_id": "8706"
+    },
+    {
+        "bearing": 0,
+        "route_id": "803",
+        "speed": 17.43000030517578,
+        "trip_id": "1401150",
+        "vehicle_id": "5064"
+    },
+    {
+        "bearing": 0,
+        "route_id": "801",
+        "speed": 26.84000015258789,
+        "trip_id": "1400673",
+        "vehicle_id": "5013"
+    },
+    {
+        "bearing": 0,
+        "route_id": "7",
+        "speed": 8.9399995803833,
+        "trip_id": "1397875",
+        "vehicle_id": "8928"
+    },
+    {
+        "bearing": 0,
+        "route_id": "17",
+        "speed": 0,
+        "trip_id": "1383680",
+        "vehicle_id": "2364"
+    },
+    {
+        "bearing": 0,
+        "route_id": "311",
+        "speed": 21.610000610351562,
+        "trip_id": "1387829",
+        "vehicle_id": "2375"
+    },
+    {
+        "bearing": 0,
+        "route_id": "20",
+        "speed": 6.099999904632568,
+        "trip_id": "1384938",
+        "vehicle_id": "2057"
+    },
+    {
+        "bearing": 0,
+        "route_id": "37",
+        "speed": 13.890000343322754,
+        "trip_id": "1390311",
+        "vehicle_id": "2255"
+    },
+    {
+        "bearing": 0,
+        "route_id": "801",
+        "speed": 24.6200008392334,
+        "trip_id": "1400657",
+        "vehicle_id": "5018"
+    },
+    {
+        "bearing": 0,
+        "route_id": "10",
+        "speed": 12.579999923706055,
+        "trip_id": "1382900",
+        "vehicle_id": "8943"
+    },
+    {
+        "bearing": 0,
+        "route_id": "803",
+        "speed": 7.510000228881836,
+        "trip_id": "1401151",
+        "vehicle_id": "5053"
+    },
+    {
+        "bearing": 0,
+        "route_id": "20",
+        "speed": 21.149999618530273,
+        "trip_id": "1384903",
+        "vehicle_id": "8926"
+    },
+    {
+        "bearing": 0,
+        "route_id": "5",
+        "speed": 8.119999885559082,
+        "trip_id": "1391932",
+        "vehicle_id": "7404"
+    },
+    {
+        "bearing": 0,
+        "route_id": "338",
+        "speed": 10.119999885559082,
+        "trip_id": "1389408",
+        "vehicle_id": "2358"
+    },
+    {
+        "bearing": 0,
+        "route_id": "801",
+        "speed": 2.069999933242798,
+        "trip_id": "1400672",
+        "vehicle_id": "5006"
+    },
+    {
+        "bearing": 0,
+        "route_id": "37",
+        "speed": 4.510000228881836,
+        "trip_id": "1390294",
+        "vehicle_id": "2061"
+    },
+    {
+        "bearing": 0,
+        "route_id": "30",
+        "speed": 21.479999542236328,
+        "trip_id": "1387151",
+        "vehicle_id": "2251"
+    },
+    {
+        "bearing": 0,
+        "route_id": "801",
+        "speed": 14.470000267028809,
+        "trip_id": "1400709",
+        "vehicle_id": "5014"
+    },
+    {
+        "bearing": 0,
+        "route_id": "30",
+        "speed": 20,
+        "trip_id": "1387112",
+        "vehicle_id": "2354"
+    },
+    {
+        "bearing": 0,
+        "route_id": "20",
+        "speed": 0,
+        "trip_id": "1402220",
+        "vehicle_id": "2208"
+    },
+    {
+        "bearing": 0,
+        "route_id": "300",
+        "speed": 26.010000228881836,
+        "trip_id": "1387514",
+        "vehicle_id": "8918"
+    },
+    {
+        "bearing": 0,
+        "route_id": "1",
+        "speed": 15.140000343322754,
+        "trip_id": "1382586",
+        "vehicle_id": "8842"
+    },
+    {
+        "bearing": 0,
+        "route_id": "338",
+        "speed": 27.239999771118164,
+        "trip_id": "1389436",
+        "vehicle_id": "2352"
+    },
+    {
+        "bearing": 0,
+        "route_id": "331",
+        "speed": 5.840000152587891,
+        "trip_id": "1388925",
+        "vehicle_id": "2414"
+    },
+    {
+        "bearing": 0,
+        "route_id": "325",
+        "speed": 21.899999618530273,
+        "trip_id": "1388600",
+        "vehicle_id": "7464"
+    },
+    {
+        "bearing": 0,
+        "route_id": "640",
+        "speed": 6.349999904632568,
+        "trip_id": "1393080",
+        "vehicle_id": "8717"
+    },
+    {
+        "bearing": 0,
+        "route_id": "1",
+        "speed": 8.8100004196167,
+        "trip_id": "1382585",
+        "vehicle_id": "8853"
+    },
+    {
+        "bearing": 0,
+        "route_id": "",
+        "speed": 0.07999999821186066,
+        "trip_id": "",
+        "vehicle_id": "6016"
+    },
+    {
+        "bearing": 0,
+        "route_id": "300",
+        "speed": 20.360000610351562,
+        "trip_id": "1387473",
+        "vehicle_id": "2202"
+    },
+    {
+        "bearing": 0,
+        "route_id": "10",
+        "speed": 13.529999732971191,
+        "trip_id": "1382904",
+        "vehicle_id": "2058"
+    },
+    {
+        "bearing": 0,
+        "route_id": "7",
+        "speed": 9.34000015258789,
+        "trip_id": "1397876",
+        "vehicle_id": "2052"
+    },
+    {
+        "bearing": 0,
+        "route_id": "4",
+        "speed": 7.179999828338623,
+        "trip_id": "1391023",
+        "vehicle_id": "2056"
+    },
+    {
+        "bearing": 0,
+        "route_id": "333",
+        "speed": 9.819999694824219,
+        "trip_id": "1389210",
+        "vehicle_id": "2416"
+    },
+    {
+        "bearing": 0,
+        "route_id": "275",
+        "speed": 9.850000381469727,
+        "trip_id": "1386529",
+        "vehicle_id": "2233"
+    },
+    {
+        "bearing": 0,
+        "route_id": "801",
+        "speed": 18.100000381469727,
+        "trip_id": "1400658",
+        "vehicle_id": "5021"
+    },
+    {
+        "bearing": 0,
+        "route_id": "653",
+        "speed": 0,
+        "trip_id": "1394573",
+        "vehicle_id": "7456"
+    },
+    {
+        "bearing": 0,
+        "route_id": "100",
+        "speed": 21.690000534057617,
+        "trip_id": "1383250",
+        "vehicle_id": "2406"
+    }
+]
