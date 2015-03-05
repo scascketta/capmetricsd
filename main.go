@@ -62,21 +62,6 @@ func main() {
 			wg.Done()
 		}(session)
 
-		// check for new vehicles if after next check time, add new ones
-		// (added eventually, not necessarily as soon as a new vehicle appears in vehicle_positions table)
-		if firstNewVehicleCheck || time.Now().After(nextNewVehicleCheck) {
-			firstNewVehicleCheck = false
-			wg.Add(1)
-			go func() {
-				err = checkNewVehicles(session)
-				if err != nil {
-					errlogger.Println(err)
-				}
-				wg.Done()
-			}()
-			nextNewVehicleCheck = time.Now().Add(vehicleCheckInterval)
-			dbglogger.Println("Next check for new vehicles scheduled at:", nextNewVehicleCheck)
-		}
 		wg.Wait()
 
 		// determine how long to sleep
