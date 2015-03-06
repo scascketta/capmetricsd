@@ -1,14 +1,16 @@
 package task
 
 import (
+	"fmt"
 	"log"
+	"os"
 	"time"
 )
 
-func init() {
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	log.SetPrefix("[TASK] ")
-}
+var (
+	dlog = log.New(os.Stdout, "[DBG] ", log.LstdFlags|log.Lshortfile)
+	elog = log.New(os.Stderr, "[ERR] ", log.LstdFlags|log.Lshortfile)
+)
 
 // Objects implementing RepeatTasker run a task at a set interval
 type RepeatTasker interface {
@@ -21,15 +23,17 @@ type FixedRepeatTask struct {
 	Func     func() error
 	interval time.Duration
 	Name     string
+	dlog     *log.Logger
+	elog     *log.Logger
 }
 
 func (frt *FixedRepeatTask) RunTask() {
-	log.Println("Running task:", frt.Name)
+	frt.dlog.Println("Running task:", frt.Name)
 	err := frt.Func()
 	if err != nil {
-		log.Printf("[ERROR:%s]: %s\n", frt.Name, err.Error())
+		frt.elog.Printf("[ERROR:%s]: %s\n", frt.Name, err.Error())
 	}
-	log.Println("Next run in:", frt.Interval())
+	frt.dlog.Println("Next run in:", frt.Interval())
 }
 
 func (frt *FixedRepeatTask) Interval() time.Duration {
@@ -41,6 +45,8 @@ func NewFixedRepeatTask(fn func() error, interval time.Duration, name string) *F
 	frt.Func = fn
 	frt.interval = interval
 	frt.Name = name
+	frt.dlog = log.New(os.Stdout, fmt.Sprintf("[DBG][TASK: %s] ", name), log.LstdFlags|log.Lshortfile)
+	frt.elog = log.New(os.Stderr, fmt.Sprintf("[ERR][TASK: %s] ", name), log.LstdFlags|log.Lshortfile)
 	return frt
 }
 
@@ -49,24 +55,26 @@ type DynamicRepeatTask struct {
 	Func           func() error
 	interval       time.Duration
 	Name           string
+	dlog           *log.Logger
+	elog           *log.Logger
 	UpdateInterval func() (bool, time.Duration)
 }
 
 func (drt *DynamicRepeatTask) RunTask() {
-	log.Println("Running task: ", drt.Name)
+	drt.dlog.Println("Running task: ", drt.Name)
 	err := drt.Func()
 	if err != nil {
-		log.Printf("[ERROR:%s] %s\n", drt.Name, err.Error())
+		drt.elog.Printf("[ERROR:%s] %s\n", drt.Name, err.Error())
 	}
 
 	updated, d := drt.UpdateInterval()
 	if updated {
-		log.Println("Updating interval")
+		drt.dlog.Println("Updating interval")
 		drt.interval = d
 	} else {
-		log.Println("Not updating interval")
+		drt.dlog.Println("Not updating interval")
 	}
-	log.Println("Next run in:", drt.Interval())
+	drt.dlog.Println("Next run in:", drt.Interval())
 }
 
 func (drt *DynamicRepeatTask) Interval() time.Duration {
@@ -79,5 +87,7 @@ func NewDynamicRepeatTask(fn func() error, interval time.Duration, name string, 
 	drt.interval = interval
 	drt.Name = name
 	drt.UpdateInterval = updateFn
+	drt.dlog = log.New(os.Stdout, fmt.Sprintf("[DBG][TASK: %s] ", name), log.LstdFlags|log.Lshortfile)
+	drt.elog = log.New(os.Stderr, fmt.Sprintf("[ERR][TASK: %s] ", name), log.LstdFlags|log.Lshortfile)
 	return drt
 }

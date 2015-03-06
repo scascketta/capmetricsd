@@ -1,4 +1,4 @@
-package main
+package capmetro
 
 import (
 	gtfsrt "github.com/scascketta/capmetro-data/Godeps/_workspace/src/gist.github.com/scascketta/fcced4a6518f68189666"
