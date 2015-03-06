@@ -9,9 +9,6 @@ import (
 var (
 	lastUpdated = map[string]time.Time{}
 
-	nextNewVehicleCheck  = time.Now()
-	vehicleCheckInterval = 4 * time.Hour
-
 	normalDuration   = 30 * time.Second
 	extendedDuration = 10 * time.Minute
 
@@ -101,51 +98,4 @@ func routesAreSleeping() bool {
 		}
 	}
 	return true
-}
-
-// Check if any new vehicles appear in recorded vehicle positions, add them to vehicles table
-func checkNewVehicles() error {
-	session := setupConn()
-	defer session.Close()
-
-	newVehicles := 0
-	dlog.Println("Check for new vehicles.")
-	vehicles := []map[string]string{}
-	cur, err := r.Table("vehicle_position").Pluck("vehicle_id", "route", "route_id", "trip_id").Distinct().Run(session)
-	if err != nil {
-		return err
-	}
-	cur.All(&vehicles)
-
-	for _, vehicle := range vehicles {
-		stream := r.Table("vehicles").Pluck("vehicle_id")
-		expr := r.Expr(map[string]string{"vehicle_id": vehicle["vehicle_id"]})
-		cur, err = stream.Contains(expr).Run(session)
-		if err != nil {
-			return err
-		}
-		var res bool
-
-		cur.Next(&res)
-		if !res {
-			newVehicles++
-			dlog.Printf("Adding new vehicle %s to vehicles table.\n", vehicle["vehicle_id"])
-			vehicle := Vehicle{
-				VehicleID:    vehicle["vehicle_id"],
-				Route:        vehicle["route"],
-				RouteID:      vehicle["route_id"],
-				TripID:       vehicle["trip_id"],
-				LastAnalyzed: time.Now(),
-			}
-			_, err := r.Table("vehicles").Insert(r.Expr(vehicle)).Run(session)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	dlog.Printf("Inserted %d new vehicles.\n", newVehicles)
-	nextNewVehicleCheck = time.Now().Add(vehicleCheckInterval)
-	dlog.Println("Next check for new vehicles scheduled at:", nextNewVehicleCheck)
-	return nil
 }

@@ -99,13 +99,8 @@ func main() {
 		Interval: 30 * time.Second,
 		Name:     "LogVehicleLocations",
 	}
-	vehicleTask := RepeatTask{
-		Func:     checkNewVehicles,
-		Interval: 4 * time.Hour,
-		Name:     "CheckNewVehicles",
-	}
 
-	tasks := []RepeatTask{locationTask, cronitorTask, vehicleTask}
+	tasks := []RepeatTask{locationTask, cronitorTask}
 	runTasksOnce(tasks)
 
 	cases := make([]reflect.SelectCase, len(tasks))
