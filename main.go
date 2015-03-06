@@ -5,52 +5,27 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"reflect"
 	"sync"
 	"time"
+
+	"github.com/scascketta/capmetro-data/task"
 
 	r "github.com/scascketta/capmetro-data/Godeps/_workspace/src/github.com/dancannon/gorethink"
 	"github.com/scascketta/capmetro-data/Godeps/_workspace/src/github.com/kelseyhightower/envconfig"
 )
 
 var (
-	s    *r.Session
-	dlog = log.New(os.Stdout, "[DBG] ", log.LstdFlags|log.Lshortfile)
-	elog = log.New(os.Stderr, "[ERR] ", log.LstdFlags|log.Lshortfile)
-	cfg  = config{}
+	s        *r.Session
+	dlog     = log.New(os.Stdout, "[DBG] ", log.LstdFlags|log.Lshortfile)
+	elog     = log.New(os.Stderr, "[ERR] ", log.LstdFlags|log.Lshortfile)
+	cfg      = config{}
+	extended = true
 )
 
 type config struct {
 	DbName, DbAddr, DbPort string
 	CronitorURL            string
 	MaxRetries             int
-}
-
-// RepeatTask calls Func at every Interval
-type RepeatTask struct {
-	Func     func() error
-	Interval time.Duration
-	Name     string
-}
-
-func (rt *RepeatTask) Run() {
-	dlog.Println("Running task:", rt.Name)
-	err := rt.Func()
-	if err != nil {
-		elog.Printf("[ERROR:%s]: %s\n", rt.Name, err.Error())
-	}
-}
-
-func runTasksOnce(tasks []RepeatTask) {
-	var wg sync.WaitGroup
-	for _, t := range tasks {
-		wg.Add(1)
-		go func(t RepeatTask) {
-			t.Run()
-			wg.Done()
-		}(t)
-	}
-	wg.Wait()
 }
 
 func setupConn() *r.Session {
@@ -61,18 +36,25 @@ func setupConn() *r.Session {
 	return s
 }
 
-// DynamicRepeatTask calls a RepeatTask.Func at every Interval which can be modified by UpdateInterval
-type DynamicRepeatTask struct {
-	Task           RepeatTask
-	UpdateInterval func() (time.Duration, bool)
-}
-
 func cronitor() error {
 	res, err := http.Get(cfg.CronitorURL)
 	if err == nil {
 		res.Body.Close()
 	}
 	return err
+}
+
+func UpdateInterval() (bool, time.Duration) {
+	if routesAreSleeping() {
+		for k := range staleResponses {
+			staleResponses[k] = 0
+		}
+		log.Println("Sleeping for extended duration!")
+		return true, extendedDuration
+	} else {
+		log.Println("Sleeping for normal duration!")
+		return false, normalDuration
+	}
 }
 
 func main() {
@@ -89,30 +71,20 @@ func main() {
 		dlog.Printf("Connection to RethinkDB at %s succeeded.\n", connOpts.Address)
 	}
 
-	cronitorTask := RepeatTask{
-		Func:     cronitor,
-		Interval: 10 * time.Minute,
-		Name:     "NotifyCronitor",
-	}
-	locationTask := RepeatTask{
-		Func:     LogVehicleLocations,
-		Interval: 30 * time.Second,
-		Name:     "LogVehicleLocations",
-	}
+	cronitorTask := task.NewFixedRepeatTask(cronitor, 10*time.Minute, "NotifyCronitor")
+	locationTask := task.NewDynamicRepeatTask(LogVehicleLocations, 30*time.Second, "LogVehicleLocations", UpdateInterval)
+	repeatTasks := []task.RepeatTasker{locationTask, cronitorTask}
 
-	tasks := []RepeatTask{locationTask, cronitorTask}
-	runTasksOnce(tasks)
-
-	cases := make([]reflect.SelectCase, len(tasks))
-	for i, t := range tasks {
-		cases[i] = reflect.SelectCase{
-			Dir:  reflect.SelectRecv,
-			Chan: reflect.ValueOf(time.NewTicker(t.Interval).C),
-		}
+	var wg sync.WaitGroup
+	for _, rt := range repeatTasks {
+		wg.Add(1)
+		go func(rt task.RepeatTasker) {
+			for {
+				rt.RunTask()
+				time.Sleep(rt.Interval())
+			}
+			wg.Done()
+		}(rt)
 	}
-
-	for {
-		chosen, _, _ := reflect.Select(cases)
-		go tasks[chosen].Run()
-	}
+	wg.Wait()
 }
