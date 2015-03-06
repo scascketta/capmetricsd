@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	r "github.com/scascketta/capmetro-data/Godeps/_workspace/src/github.com/dancannon/gorethink"
+	r "github.com/scascketta/CapMetrics/Godeps/_workspace/src/github.com/dancannon/gorethink"
 )
 
 const (

@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/scascketta/capmetro-data/Godeps/_workspace/src/gopkg.in/fatih/pool.v2"
+	"github.com/scascketta/CapMetrics/Godeps/_workspace/src/gopkg.in/fatih/pool.v2"
 
-	p "github.com/scascketta/capmetro-data/Godeps/_workspace/src/github.com/dancannon/gorethink/ql2"
+	p "github.com/scascketta/CapMetrics/Godeps/_workspace/src/github.com/dancannon/gorethink/ql2"
 )
 
 type Response struct {

@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/scascketta/capmetro-data/Godeps/_workspace/src/github.com/dancannon/gorethink/types"
+	"github.com/scascketta/CapMetrics/Godeps/_workspace/src/github.com/dancannon/gorethink/types"
 )
 
 var (

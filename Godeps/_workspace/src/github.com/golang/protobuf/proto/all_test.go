@@ -45,7 +45,7 @@ import (
 	"time"
 
 	. "./testdata"
-	. "github.com/scascketta/capmetro-data/Godeps/_workspace/src/github.com/golang/protobuf/proto"
+	. "github.com/scascketta/CapMetrics/Godeps/_workspace/src/github.com/golang/protobuf/proto"
 )
 
 var globalO *Buffer

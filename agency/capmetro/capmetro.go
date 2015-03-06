@@ -1,13 +1,13 @@
 package capmetro
 
 import (
-	gtfsrt "github.com/scascketta/capmetro-data/Godeps/_workspace/src/gist.github.com/scascketta/fcced4a6518f68189666"
-	"github.com/scascketta/capmetro-data/Godeps/_workspace/src/github.com/golang/protobuf/proto"
+	gtfsrt "github.com/scascketta/CapMetrics/Godeps/_workspace/src/gist.github.com/scascketta/fcced4a6518f68189666"
+	"github.com/scascketta/CapMetrics/Godeps/_workspace/src/github.com/golang/protobuf/proto"
 	"io/ioutil"
 	"net/http"
 	"time"
 
-	r "github.com/scascketta/capmetro-data/Godeps/_workspace/src/github.com/dancannon/gorethink"
+	r "github.com/scascketta/CapMetrics/Godeps/_workspace/src/github.com/dancannon/gorethink"
 )
 
 // Vehicle describes a transit vehicle.

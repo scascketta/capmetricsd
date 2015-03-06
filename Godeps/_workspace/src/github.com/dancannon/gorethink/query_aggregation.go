@@ -1,7 +1,7 @@
 package gorethink
 
 import (
-	p "github.com/scascketta/capmetro-data/Godeps/_workspace/src/github.com/dancannon/gorethink/ql2"
+	p "github.com/scascketta/CapMetrics/Godeps/_workspace/src/github.com/dancannon/gorethink/ql2"
 )
 
 // Aggregation

@@ -34,7 +34,7 @@ package proto_test
 import (
 	"testing"
 
-	"github.com/scascketta/capmetro-data/Godeps/_workspace/src/code.google.com/p/goprotobuf/proto"
+	"github.com/scascketta/CapMetrics/Godeps/_workspace/src/code.google.com/p/goprotobuf/proto"
 
 	pb "./testdata"
 )

@@ -38,7 +38,7 @@ import (
 
 	proto3pb "./proto3_proto"
 	. "./testdata"
-	. "github.com/scascketta/capmetro-data/Godeps/_workspace/src/github.com/golang/protobuf/proto"
+	. "github.com/scascketta/CapMetrics/Godeps/_workspace/src/github.com/golang/protobuf/proto"
 )
 
 type UnmarshalTextTest struct {

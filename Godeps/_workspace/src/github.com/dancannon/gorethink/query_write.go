@@ -1,6 +1,6 @@
 package gorethink
 
-import p "github.com/scascketta/capmetro-data/Godeps/_workspace/src/github.com/dancannon/gorethink/ql2"
+import p "github.com/scascketta/CapMetrics/Godeps/_workspace/src/github.com/dancannon/gorethink/ql2"
 
 type InsertOpts struct {
 	Durability    interface{} `gorethink:"durability,omitempty"`

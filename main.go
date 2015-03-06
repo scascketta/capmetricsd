@@ -8,11 +8,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/scascketta/capmetro-data/agency/capmetro"
-	"github.com/scascketta/capmetro-data/task"
+	"github.com/scascketta/CapMetrics/agency/capmetro"
+	"github.com/scascketta/CapMetrics/task"
 
-	r "github.com/scascketta/capmetro-data/Godeps/_workspace/src/github.com/dancannon/gorethink"
-	"github.com/scascketta/capmetro-data/Godeps/_workspace/src/github.com/kelseyhightower/envconfig"
+	r "github.com/scascketta/CapMetrics/Godeps/_workspace/src/github.com/dancannon/gorethink"
+	"github.com/scascketta/CapMetrics/Godeps/_workspace/src/github.com/kelseyhightower/envconfig"
 )
 
 var (

@@ -1,5 +1,5 @@
 {
-	"ImportPath": "github.com/scascketta/capmetro-data",
+	"ImportPath": "github.com/scascketta/CapMetrics",
 	"GoVersion": "go1.4",
 	"Deps": [
 		{
