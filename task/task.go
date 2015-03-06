@@ -7,11 +7,6 @@ import (
 	"time"
 )
 
-var (
-	dlog = log.New(os.Stdout, "[DBG] ", log.LstdFlags|log.Lshortfile)
-	elog = log.New(os.Stderr, "[ERR] ", log.LstdFlags|log.Lshortfile)
-)
-
 // Objects implementing RepeatTasker run a task at a set interval
 type RepeatTasker interface {
 	RunTask()
@@ -31,7 +26,7 @@ func (frt *FixedRepeatTask) RunTask() {
 	frt.dlog.Println("Running task:", frt.Name)
 	err := frt.Func()
 	if err != nil {
-		frt.elog.Printf("[ERROR:%s]: %s\n", frt.Name, err.Error())
+		frt.elog.Println(err)
 	}
 	frt.dlog.Println("Next run in:", frt.Interval())
 }
@@ -64,7 +59,7 @@ func (drt *DynamicRepeatTask) RunTask() {
 	drt.dlog.Println("Running task: ", drt.Name)
 	err := drt.Func()
 	if err != nil {
-		drt.elog.Printf("[ERROR:%s] %s\n", drt.Name, err.Error())
+		drt.elog.Println(err)
 	}
 
 	updated, d := drt.UpdateInterval()
