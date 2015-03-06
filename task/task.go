@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -85,4 +86,19 @@ func NewDynamicRepeatTask(fn func() error, interval time.Duration, name string, 
 	drt.dlog = log.New(os.Stdout, fmt.Sprintf("[DBG][TASK: %s] ", name), log.LstdFlags|log.Lshortfile)
 	drt.elog = log.New(os.Stderr, fmt.Sprintf("[ERR][TASK: %s] ", name), log.LstdFlags|log.Lshortfile)
 	return drt
+}
+
+func StartTasks(repeatTasks []RepeatTasker) {
+	var wg sync.WaitGroup
+	for _, rt := range repeatTasks {
+		wg.Add(1)
+		go func(rt RepeatTasker) {
+			for {
+				rt.RunTask()
+				time.Sleep(rt.Interval())
+			}
+			wg.Done()
+		}(rt)
+	}
+	wg.Wait()
 }

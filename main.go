@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/scascketta/CapMetrics/agency/capmetro"
@@ -56,17 +55,5 @@ func main() {
 	fh := capmetro.NewFetchHistory()
 	locationTask := task.NewDynamicRepeatTask(capmetro.LogVehicleLocations(setupConn, fh), 30*time.Second, "LogVehicleLocations", capmetro.UpdateInterval(cfg.MaxRetries, fh))
 	repeatTasks := []task.RepeatTasker{locationTask, cronitorTask}
-
-	var wg sync.WaitGroup
-	for _, rt := range repeatTasks {
-		wg.Add(1)
-		go func(rt task.RepeatTasker) {
-			for {
-				rt.RunTask()
-				time.Sleep(rt.Interval())
-			}
-			wg.Done()
-		}(rt)
-	}
-	wg.Wait()
+	task.StartTasks(repeatTasks)
 }
