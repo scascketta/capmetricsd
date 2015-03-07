@@ -51,7 +51,7 @@ func main() {
 	s := setupConn()
 	s.Close()
 
-	cronitorTask := task.NewFixedRepeatTask(cronitor, 10*time.Minute, "NotifyCronitor")
+	cronitorTask := task.NewRepeatTask(cronitor, 10*time.Minute, "NotifyCronitor")
 	fh := capmetro.NewFetchHistory()
 	locationTask := task.NewDynamicRepeatTask(capmetro.LogVehicleLocations(setupConn, fh), 30*time.Second, "LogVehicleLocations", capmetro.UpdateInterval(cfg.MaxRetries, fh))
 	repeatTasks := []task.RepeatTasker{locationTask, cronitorTask}

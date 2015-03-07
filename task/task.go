@@ -14,8 +14,8 @@ type RepeatTasker interface {
 	Interval() time.Duration
 }
 
-// FixedRepeatTask calls Func at every Interval
-type FixedRepeatTask struct {
+// RepeatTask calls Func at every Interval
+type RepeatTask struct {
 	Func     func() error
 	interval time.Duration
 	Name     string
@@ -23,39 +23,37 @@ type FixedRepeatTask struct {
 	elog     *log.Logger
 }
 
-func (frt *FixedRepeatTask) RunTask() {
-	frt.dlog.Println("Running task:", frt.Name)
-	err := frt.Func()
+// RunTask() calls the RepeatTask's Func and writes any error to STDERR
+func (rt *RepeatTask) RunTask() {
+	rt.dlog.Println("Running task:", rt.Name)
+	err := rt.Func()
 	if err != nil {
-		frt.elog.Println(err)
+		rt.elog.Println(err)
 	}
-	frt.dlog.Println("Next run in:", frt.Interval())
+	rt.dlog.Println("Next run in:", rt.Interval())
 }
 
-func (frt *FixedRepeatTask) Interval() time.Duration {
-	return frt.interval
+func (rt *RepeatTask) Interval() time.Duration {
+	return rt.interval
 }
 
-func NewFixedRepeatTask(fn func() error, interval time.Duration, name string) *FixedRepeatTask {
-	frt := new(FixedRepeatTask)
-	frt.Func = fn
-	frt.interval = interval
-	frt.Name = name
-	frt.dlog = log.New(os.Stdout, fmt.Sprintf("[DBG][TASK: %s] ", name), log.LstdFlags|log.Lshortfile)
-	frt.elog = log.New(os.Stderr, fmt.Sprintf("[ERR][TASK: %s] ", name), log.LstdFlags|log.Lshortfile)
-	return frt
+func NewRepeatTask(fn func() error, interval time.Duration, name string) *RepeatTask {
+	return &RepeatTask{
+		Func:     fn,
+		interval: interval,
+		Name:     name,
+		dlog:     log.New(os.Stdout, fmt.Sprintf("[DBG][TASK: %s] ", name), log.LstdFlags|log.Lshortfile),
+		elog:     log.New(os.Stderr, fmt.Sprintf("[ERR][TASK: %s] ", name), log.LstdFlags|log.Lshortfile),
+	}
 }
 
-// DynamicRepeatTask calls a FixedRepeatTask.Func at every Interval which can be modified by UpdateInterval
+// DynamicRepeatTask is like RepeatTask, but can change the interval by calling UpdateInterval
 type DynamicRepeatTask struct {
-	Func           func() error
-	interval       time.Duration
-	Name           string
-	dlog           *log.Logger
-	elog           *log.Logger
+	*RepeatTask
 	UpdateInterval func() (bool, time.Duration)
 }
 
+// RunTask() calls the DynamicRepeatTask's Func and writes any error to STDERR
 func (drt *DynamicRepeatTask) RunTask() {
 	drt.dlog.Println("Running task: ", drt.Name)
 	err := drt.Func()
@@ -78,16 +76,10 @@ func (drt *DynamicRepeatTask) Interval() time.Duration {
 }
 
 func NewDynamicRepeatTask(fn func() error, interval time.Duration, name string, updateFn func() (bool, time.Duration)) *DynamicRepeatTask {
-	drt := new(DynamicRepeatTask)
-	drt.Func = fn
-	drt.interval = interval
-	drt.Name = name
-	drt.UpdateInterval = updateFn
-	drt.dlog = log.New(os.Stdout, fmt.Sprintf("[DBG][TASK: %s] ", name), log.LstdFlags|log.Lshortfile)
-	drt.elog = log.New(os.Stderr, fmt.Sprintf("[ERR][TASK: %s] ", name), log.LstdFlags|log.Lshortfile)
-	return drt
+	return &DynamicRepeatTask{NewRepeatTask(fn, interval, name), updateFn}
 }
 
+// StartTasks starts calling RepeatTaskers in their own separate goroutine between their specified intervals. This runs forever.
 func StartTasks(repeatTasks []RepeatTasker) {
 	var wg sync.WaitGroup
 	for _, rt := range repeatTasks {

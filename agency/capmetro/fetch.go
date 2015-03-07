@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	NormalDuration   = 30 * time.Second
-	ExtendedDuration = 10 * time.Minute
+	NormalDuration   = 30 * time.Second // Duration to wait between fetching locations when at least one route is active
+	ExtendedDuration = 10 * time.Minute // Duration to wait between fetching locations when all routes are inactive
 )
 
 var (
@@ -18,16 +18,15 @@ var (
 	elog = log.New(os.Stderr, "[ERR] ", log.LstdFlags|log.Lshortfile)
 )
 
+// FetchHistory contains the history of vehicle location fetches, including when a vehicle was last updated,
+// and how many responses were "stale" for each route.
 type FetchHistory struct {
 	LastUpdated    map[string]time.Time
 	StaleResponses map[string]int
 }
 
 func NewFetchHistory() *FetchHistory {
-	fh := new(FetchHistory)
-	fh.LastUpdated = make(map[string]time.Time)
-	fh.StaleResponses = make(map[string]int)
-	return fh
+	return &FetchHistory{make(map[string]time.Time), make(map[string]int)}
 }
 
 // filterUpdatedVehicles returns the VehicleLocation structs whose timestamp has
@@ -52,6 +51,7 @@ func prepRoute(route string, fh *FetchHistory) {
 	}
 }
 
+// LogVehicleLocations calls setupConn for a *gorethink.Session to pass to logVehicleLocations and closes it afterwards.
 func LogVehicleLocations(setupConn func() *r.Session, fh *FetchHistory) func() error {
 	return func() error {
 		session := setupConn()
@@ -61,7 +61,7 @@ func LogVehicleLocations(setupConn func() *r.Session, fh *FetchHistory) func() e
 	}
 }
 
-// LogVehicleLocations fetches vehicle locations from CapMetro and inserts new
+// logVehicleLocations fetches vehicle locations from CapMetro and inserts new
 // locations into the database. It also tracks stale responses to determine when
 //  to sleep.
 func logVehicleLocations(session *r.Session, fh *FetchHistory) error {
@@ -114,16 +114,15 @@ func routesAreSleeping(maxRetries int, fh *FetchHistory) bool {
 	return true
 }
 
+// UpdateInterval changes the interval between fetches if MAX_RETRIES responses have been stale for every route
 func UpdateInterval(maxRetries int, fh *FetchHistory) func() (bool, time.Duration) {
 	return func() (bool, time.Duration) {
 		if routesAreSleeping(maxRetries, fh) {
 			for k := range fh.StaleResponses {
 				fh.StaleResponses[k] = 0
 			}
-			dlog.Println("Sleeping for extended duration!")
 			return true, ExtendedDuration
 		} else {
-			dlog.Println("Sleeping for normal duration!")
 			return false, NormalDuration
 		}
 	}
