@@ -34,12 +34,16 @@ func setupConn() *r.Session {
 	return s
 }
 
-func cronitor() error {
-	res, err := http.Get(cfg.CronitorURL)
-	if err == nil {
-		res.Body.Close()
+func LogVehiclesNotifyCronitor(setupConn func() *r.Session, fh *capmetro.FetchHistory) func() error {
+	return func() error {
+		res, err := http.Get(cfg.CronitorURL)
+		if err == nil {
+			res.Body.Close()
+		} else {
+			return err
+		}
+		return capmetro.LogVehicleLocations(setupConn, fh)()
 	}
-	return err
 }
 
 func main() {
@@ -51,9 +55,8 @@ func main() {
 	s := setupConn()
 	s.Close()
 
-	cronitorTask := task.NewRepeatTask(cronitor, 10*time.Minute, "NotifyCronitor")
 	fh := capmetro.NewFetchHistory()
-	locationTask := task.NewDynamicRepeatTask(capmetro.LogVehicleLocations(setupConn, fh), 30*time.Second, "LogVehicleLocations", capmetro.UpdateInterval(cfg.MaxRetries, fh))
-	repeatTasks := []task.RepeatTasker{locationTask, cronitorTask}
+	locationTask := task.NewDynamicRepeatTask(LogVehiclesNotifyCronitor(setupConn, fh), 30*time.Second, "LogVehiclesNotifyCronitor", capmetro.UpdateInterval(cfg.MaxRetries, fh))
+	repeatTasks := []task.RepeatTasker{locationTask}
 	task.StartTasks(repeatTasks)
 }
