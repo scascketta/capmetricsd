@@ -80,7 +80,7 @@ func NewDynamicRepeatTask(fn func() error, interval time.Duration, name string, 
 }
 
 // StartTasks starts calling RepeatTaskers in their own separate goroutine between their specified intervals. This runs forever.
-func StartTasks(repeatTasks []RepeatTasker) {
+func StartTasks(repeatTasks ...RepeatTasker) {
 	var wg sync.WaitGroup
 	for _, rt := range repeatTasks {
 		wg.Add(1)

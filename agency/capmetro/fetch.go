@@ -3,6 +3,7 @@ package capmetro
 import (
 	"log"
 	"os"
+	"sync"
 	"time"
 
 	r "github.com/scascketta/CapMetrics/Godeps/_workspace/src/github.com/dancannon/gorethink"
@@ -71,11 +72,10 @@ func logVehicleLocations(session *r.Session, fh *FetchHistory) error {
 		return err
 	}
 
-	errChan := make(chan error)
-	doneChan := make(chan struct{})
-	remaining := len(locationsByRoute)
+	var wg sync.WaitGroup
 	for route, rl := range locationsByRoute {
-		go func(route string, rl RouteLocations, errChan chan error, doneChan chan struct{}) {
+		wg.Add(1)
+		go func(route string, rl RouteLocations) {
 			prepRoute(route, fh)
 			updated := filterUpdatedVehicles(rl.Locations, fh)
 			if len(updated) == 0 {
@@ -85,28 +85,16 @@ func logVehicleLocations(session *r.Session, fh *FetchHistory) error {
 				fh.StaleResponses[route] = 0
 				_, err = r.Table("vehicle_position").Insert(r.Expr(updated)).Run(session)
 				if err != nil {
-					errChan <- err
+					// let goroutines fail without affecting others
+					elog.Println(err)
 				} else {
 					dlog.Printf("Log %d vehicles, route %s.\n", len(updated), route)
-					doneChan <- struct{}{}
 				}
-
 			}
-		}(route, rl, errChan, doneChan)
+			wg.Done()
+		}(route, rl)
 	}
-
-	for {
-		select {
-		case _ = <-doneChan:
-			remaining--
-		case err := <-errChan:
-			return err
-		}
-
-		if remaining == 0 {
-			break
-		}
-	}
+	wg.Wait()
 	return nil
 }
 
