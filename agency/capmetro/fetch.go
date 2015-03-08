@@ -40,6 +40,7 @@ func filterUpdatedVehicles(vehicles []VehicleLocation, fh *FetchHistory) []Vehic
 		// reject location updates if timestamp hasn't changed or is more than 1 minute in the future
 		if !updateTime.Equal(v.Time) && v.Time.Before(threshold) {
 			updated = append(updated, v)
+			dlog.Printf("Vehicle %s updated at %s\n", v.VehicleID, v.Time.Format("2006-01-02T15:04:05-07:00"))
 		}
 	}
 	return updated
@@ -70,32 +71,40 @@ func logVehicleLocations(session *r.Session, fh *FetchHistory) error {
 		return err
 	}
 
+	errChan := make(chan error)
+	doneChan := make(chan struct{})
+	remaining := len(locationsByRoute)
 	for route, rl := range locationsByRoute {
-		prepRoute(route, fh)
+		go func(route string, rl RouteLocations, errChan chan error, doneChan chan struct{}) {
+			prepRoute(route, fh)
+			updated := filterUpdatedVehicles(rl.Locations, fh)
+			if len(updated) == 0 {
+				fh.StaleResponses[route]++
+				dlog.Printf("No vehicles in response for route: %s.", route)
+			} else {
+				fh.StaleResponses[route] = 0
+				_, err = r.Table("vehicle_position").Insert(r.Expr(updated)).Run(session)
+				if err != nil {
+					errChan <- err
+				} else {
+					dlog.Printf("Log %d vehicles, route %s.\n", len(updated), route)
+					doneChan <- struct{}{}
+				}
 
-		updated := filterUpdatedVehicles(rl.Locations, fh)
-		if len(updated) == 0 {
-			// increment retry count if fetch just before was also stale
-			// only subsequent stale responses matter when determining how long to sleep
-			fh.StaleResponses[route]++
-			dlog.Printf("No vehicles in response for route: %s.", route)
-			continue
-		} else {
-			fh.StaleResponses[route] = 0
-		}
-
-		for _, v := range updated {
-			dlog.Printf("Vehicle %s updated at %s\n", v.VehicleID, v.Time.Format("2006-01-02T15:04:05-07:00"))
-		}
-
-		if len(updated) > 0 {
-			_, err = r.Table("vehicle_position").Insert(r.Expr(updated)).Run(session)
-			if err != nil {
-				return err
 			}
-			dlog.Printf("Log %d vehicles, route %s.\n", len(updated), route)
-		} else {
-			dlog.Printf("No new vehicle positions to record for route %s.\n", route)
+		}(route, rl, errChan, doneChan)
+	}
+
+	for {
+		select {
+		case _ = <-doneChan:
+			remaining--
+		case err := <-errChan:
+			return err
+		}
+
+		if remaining == 0 {
+			break
 		}
 	}
 	return nil
