@@ -15,9 +15,10 @@ import (
 )
 
 var (
-	dlog = log.New(os.Stdout, "[DBG] ", log.LstdFlags|log.Lshortfile)
-	elog = log.New(os.Stderr, "[ERR] ", log.LstdFlags|log.Lshortfile)
-	cfg  = config{}
+	dlog           = log.New(os.Stdout, "[DBG] ", log.LstdFlags|log.Lshortfile)
+	elog           = log.New(os.Stderr, "[ERR] ", log.LstdFlags|log.Lshortfile)
+	cfg            = config{}
+	cronitorClient = http.Client{Timeout: 10 * time.Second}
 )
 
 type config struct {
@@ -36,7 +37,7 @@ func setupConn() *r.Session {
 
 func LogVehiclesNotifyCronitor(setupConn func() *r.Session, fh *capmetro.FetchHistory) func() error {
 	return func() error {
-		res, err := http.Get(cfg.CronitorURL)
+		res, err := cronitorClient.Get(cfg.CronitorURL)
 		if err == nil {
 			res.Body.Close()
 		} else {
