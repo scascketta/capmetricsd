@@ -118,9 +118,8 @@ func UpdateInterval(maxRetries int, fh *FetchHistory) func() (bool, time.Duratio
 			for k := range fh.StaleResponses {
 				fh.StaleResponses[k] = 0
 			}
-			return true, ExtendedDuration
-		} else {
-			return false, NormalDuration
+			return ExtendedDuration
 		}
+		return NormalDuration
 	}
 }

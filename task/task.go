@@ -61,13 +61,8 @@ func (drt *DynamicRepeatTask) RunTask() {
 		drt.elog.Println(err)
 	}
 
-	updated, d := drt.UpdateInterval()
-	if updated {
-		drt.dlog.Println("Updating interval")
-		drt.interval = d
-	} else {
-		drt.dlog.Println("Not updating interval")
-	}
+	d := drt.UpdateInterval()
+	drt.interval = d
 	drt.dlog.Println("Next run in:", drt.Interval())
 }
 
