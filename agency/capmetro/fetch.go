@@ -112,8 +112,8 @@ func routesAreSleeping(maxRetries int, fh *FetchHistory) bool {
 }
 
 // UpdateInterval changes the interval between fetches if MAX_RETRIES responses have been stale for every route
-func UpdateInterval(maxRetries int, fh *FetchHistory) func() (bool, time.Duration) {
-	return func() (bool, time.Duration) {
+func UpdateInterval(maxRetries int, fh *FetchHistory) func() time.Duration {
+	return func() time.Duration {
 		if routesAreSleeping(maxRetries, fh) {
 			for k := range fh.StaleResponses {
 				fh.StaleResponses[k] = 0

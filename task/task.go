@@ -50,7 +50,7 @@ func NewRepeatTask(fn func() error, interval time.Duration, name string) *Repeat
 // DynamicRepeatTask is like RepeatTask, but can change the interval by calling UpdateInterval
 type DynamicRepeatTask struct {
 	*RepeatTask
-	UpdateInterval func() (bool, time.Duration)
+	UpdateInterval func() time.Duration
 }
 
 // RunTask() calls the DynamicRepeatTask's Func and writes any error to STDERR
@@ -70,7 +70,7 @@ func (drt *DynamicRepeatTask) Interval() time.Duration {
 	return drt.interval
 }
 
-func NewDynamicRepeatTask(fn func() error, interval time.Duration, name string, updateFn func() (bool, time.Duration)) *DynamicRepeatTask {
+func NewDynamicRepeatTask(fn func() error, interval time.Duration, name string, updateFn func() time.Duration) *DynamicRepeatTask {
 	return &DynamicRepeatTask{NewRepeatTask(fn, interval, name), updateFn}
 }
 
