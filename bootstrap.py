@@ -4,7 +4,7 @@ import os
 import requests
 import rethinkdb as r
 
-DB_NAME = 'test'
+DB_NAME = 'capmetro'
 BASE_URL = 'https://raw.githubusercontent.com/luqmaan/Instabus/39d10466bb47a6c95ce7e1c527724b850f0284aa'
 ROUTES_URL = BASE_URL + '/data/routes.json'
 
@@ -41,7 +41,7 @@ def setup_routes(conn, url=ROUTES_URL):
 def setup_stops(conn, routes_data):
     table_name = 'stops'
     _create_table_if_not_exists(conn, table_name)
-    r.table(table_name).index_create('location', r.row['location'], geo=True).run(conn)
+    _create_index_if_not_exists(conn, 'stops', 'location', ['location', r.row['location']], {'geo':True})
 
     all_stops = []
     for route in routes_data:
@@ -64,7 +64,7 @@ def setup_stops(conn, routes_data):
 def setup_shapes(conn, routes_data):
     table_name = 'shapes'
     _create_table_if_not_exists(conn, table_name)
-    r.table(table_name).index_create('location', r.row['location'], geo=True).run(conn)
+    _create_index_if_not_exists(conn, 'shapes', 'location', ['location', r.row['location']], {'geo':True})
 
     all_shapes = []
     for route in routes_data:
@@ -85,36 +85,35 @@ def setup_vehicle_positions(conn):
     table_name = 'vehicle_position'
     _create_table_if_not_exists(conn, table_name)
 
-    r.table(table_name).index_create('location', r.row['location'], geo=True).run(conn)
-    r.table(table_name).index_create('timestamp', r.row['timestamp']).run(conn)
-    r.table(table_name).index_create('vehicle_timestamp', [r.row['vehicle_id'], r.row['timestamp']]).run(conn)
-    r.table(table_name).index_create('route_timestamp', [r.row['route_id'], r.row['timestamp']]).run(conn)
+    _create_index_if_not_exists(conn, 'vehicle_position', 'location', ['location', r.row['location']], {'geo':True})
+    _create_index_if_not_exists(conn, 'vehicle_position', 'timestamp', ['timestamp', r.row['timestamp']])
+    _create_index_if_not_exists(conn, 'vehicle_position', 'vehicle_timestamp', ['vehicle_timestamp', [r.row['vehicle_id'], r.row['timestamp']]])
+    _create_index_if_not_exists(conn, 'vehicle_position', 'route_timestamp', ['route_timestamp', [r.row['route_id'], r.row['timestamp']]])
 
 
 def setup_vehicle_stop_times(conn):
     table_name = 'vehicle_stop_times'
     _create_table_if_not_exists(conn, table_name)
 
-    r.table(table_name).index_create('stop_id', r.row['stop_id']).run(conn)
-    r.table(table_name).index_create('timestamp', r.row['timestamp']).run(conn)
+    _create_index_if_not_exists(conn, 'vehicle_stop_times', 'stop_id', ['stop_id', r.row['stop_id']])
+    _create_index_if_not_exists(conn, 'vehicle_stop_times', 'timestamp', ['timestamp', r.row['timestamp']])
 
 
 def setup_vehicles(conn):
     table_name = 'vehicles'
     _create_table_if_not_exists(conn, table_name)
+    _create_index_if_not_exists(conn, 'vehicles', 'vehicle_id', ['vehicle_id', r.row['vehicle_id']])
 
-    r.table(table_name).index_create('vehicle_id', r.row['vehicle_id']).run(conn)
 
-
-def _create_index_if_not_exists(conn, table, index, args, kwargs):
+def _create_index_if_not_exists(conn, table, index, args, kwargs=dict()):
         if index not in r.table(table).index_list().run(conn):
             r.table(table).index_create(*args, **kwargs).run(conn)
 
 def setup_indexes(conn):
     _create_index_if_not_exists(conn, 'vehicle_position', 'location', ['location', r.row['location']], {'geo':True})
-    _create_index_if_not_exists(conn, 'vehicle_position', 'timestamp', ['timestamp', r.row['timestamp']], {})
-    _create_index_if_not_exists(conn, 'vehicle_position', 'vehicle_timestamp', ['vehicle_timestamp', [r.row['vehicle_id'], r.row['timestamp']]], {})
-    _create_index_if_not_exists(conn, 'vehicle_position', 'route_timestamp', ['route_timestamp', [r.row['route_id'], r.row['timestamp']]], {})
+    _create_index_if_not_exists(conn, 'vehicle_position', 'timestamp', ['timestamp', r.row['timestamp']])
+    _create_index_if_not_exists(conn, 'vehicle_position', 'vehicle_timestamp', ['vehicle_timestamp', [r.row['vehicle_id'], r.row['timestamp']]])
+    _create_index_if_not_exists(conn, 'vehicle_position', 'route_timestamp', ['route_timestamp', [r.row['route_id'], r.row['timestamp']]])
 
 
 if __name__ == '__main__':
@@ -132,4 +131,5 @@ if __name__ == '__main__':
     setup_vehicles(conn)
     setup_vehicle_positions(conn)
     setup_vehicle_stop_times(conn)
+    setup_indexes(conn)
     conn.close()
