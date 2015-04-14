@@ -1,8 +1,9 @@
-arrow==0.4.4
+arrow==0.5.4
+elasticsearch==1.4.0
 geojson==1.0.9
 gnureadline==6.3.3
 python-dateutil==2.2
-requests==2.5.1
+requests==2.6.0
 rethinkdb==1.15.0-3
 six==1.6.1
 wsgiref==0.1.2
