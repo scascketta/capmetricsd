@@ -1,16 +1,8 @@
 # CapMetrics
-This repo contains code related to collecting and analyzing vehicle location data provided by [Capital Metro](http://www.capmetro.org/). There are some specific metrics for every route that I'm interested in such as:
-
-* Deviation of actual arrival times to scheduled times
-* Time between buses at a stop ([headway](https://en.wikipedia.org/wiki/Headway))
-* Estimating the expected arrival window of a bus at a stop determined by a confidence level (i.e. 95% confidence interval)
-
+This repo contains code related to collecting and analyzing vehicle location data provided by [Capital Metro](http://www.capmetro.org/).
 # Available Data
 
-The captured vehicle location data for each day is made available the next day on the `data` branch under `data/vehicle_locations` ([shortcut](https://github.com/scascketta/CapMetrics/tree/data/data)). The data is available in CSV (Excel-friendly) and JSON (dev-friendly) formats.
-
-**Please take the data, do whatever you want, and share it.**
-
+The captured vehicle location data for each day is made available the next day on the `data` branch under `data/vehicle_locations` ([shortcut](https://github.com/scascketta/CapMetrics/tree/data/data)). The data is available as CSV files. Do whatever you like, but please credit back here if you make something public.
 
 ## Data Format
 At the moment, only [vehicle positions](https://developers.google.com/transit/gtfs-realtime/reference#VehiclePosition) are recorded.
