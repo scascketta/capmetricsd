@@ -36,7 +36,7 @@ import (
 	"testing"
 
 	pb "./testdata"
-	. "github.com/scascketta/CapMetrics/Godeps/_workspace/src/code.google.com/p/goprotobuf/proto"
+	. "code.google.com/p/goprotobuf/proto"
 )
 
 var messageWithExtension1 = &pb.MyMessage{Count: Int32(7)}

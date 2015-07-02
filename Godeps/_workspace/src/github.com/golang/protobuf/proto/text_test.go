@@ -39,7 +39,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/scascketta/CapMetrics/Godeps/_workspace/src/github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/proto"
 
 	proto3pb "./proto3_proto"
 	pb "./testdata"

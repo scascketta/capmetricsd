@@ -37,7 +37,7 @@ import (
 	"testing"
 
 	. "./testdata"
-	. "github.com/scascketta/CapMetrics/Godeps/_workspace/src/code.google.com/p/goprotobuf/proto"
+	. "code.google.com/p/goprotobuf/proto"
 )
 
 type UnmarshalTextTest struct {

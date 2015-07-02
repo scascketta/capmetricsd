@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -10,8 +9,8 @@ import (
 	"github.com/scascketta/CapMetrics/agency/capmetro"
 	"github.com/scascketta/CapMetrics/task"
 
-	r "github.com/scascketta/CapMetrics/Godeps/_workspace/src/github.com/dancannon/gorethink"
-	"github.com/scascketta/CapMetrics/Godeps/_workspace/src/github.com/kelseyhightower/envconfig"
+	"github.com/boltdb/bolt"
+	"github.com/kelseyhightower/envconfig"
 )
 
 var (
@@ -22,20 +21,19 @@ var (
 )
 
 type config struct {
-	DbName, DbAddr, DbPort string
-	CronitorURL            string
-	MaxRetries             int
+	CronitorURL string
+	MaxRetries  int
 }
 
-func setupConn() *r.Session {
-	s, err := r.Connect(r.ConnectOpts{Address: fmt.Sprintf("%s:%s", cfg.DbAddr, cfg.DbPort), Database: cfg.DbName})
+func setupConn() *bolt.DB {
+	db, err := bolt.Open("./test.db", 0600, &bolt.Options{Timeout: 5 * time.Second})
 	if err != nil {
-		elog.Fatal(err)
+		log.Fatal("Fatal error while opening bolt db: ", err)
 	}
-	return s
+	return db
 }
 
-func LogVehiclesNotifyCronitor(setupConn func() *r.Session, fh *capmetro.FetchHistory) func() error {
+func LogVehiclesNotifyCronitor(setupConn func() *bolt.DB, fh *capmetro.FetchHistory) func() error {
 	return func() error {
 		res, err := cronitorClient.Get(cfg.CronitorURL)
 		if err == nil {
@@ -53,8 +51,6 @@ func main() {
 		elog.Fatal(err)
 	}
 	dlog.Println("config:", cfg)
-	s := setupConn()
-	s.Close()
 
 	fh := capmetro.NewFetchHistory()
 	locationTask := task.NewDynamicRepeatTask(LogVehiclesNotifyCronitor(setupConn, fh), 30*time.Second, "LogVehiclesNotifyCronitor", capmetro.UpdateInterval(cfg.MaxRetries, fh))

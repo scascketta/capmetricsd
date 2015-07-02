@@ -35,7 +35,7 @@ import (
 	"testing"
 
 	pb "./proto3_proto"
-	"github.com/scascketta/CapMetrics/Godeps/_workspace/src/github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/proto"
 )
 
 func TestProto3ZeroValues(t *testing.T) {

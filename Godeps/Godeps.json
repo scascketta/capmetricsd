@@ -3,18 +3,13 @@
 	"GoVersion": "go1.4",
 	"Deps": [
 		{
-			"ImportPath": "code.google.com/p/goprotobuf/proto",
-			"Comment": "go.r60-152",
-			"Rev": "36be16571e14f67e114bb0af619e5de2c1591679"
-		},
-		{
 			"ImportPath": "gist.github.com/scascketta/fcced4a6518f68189666",
 			"Rev": "23b4845a629e52c36da72b0bee3057c9c04cc768"
 		},
 		{
-			"ImportPath": "github.com/dancannon/gorethink",
-			"Comment": "v0.5.x",
-			"Rev": "e590ff2fbe7286788da60f90e6b2bfced91dca66"
+			"ImportPath": "github.com/boltdb/bolt",
+			"Comment": "v1.0-111-g04a3e85",
+			"Rev": "04a3e85793043e76d41164037d0d7f9d53eecae3"
 		},
 		{
 			"ImportPath": "github.com/golang/protobuf/proto",
@@ -24,10 +19,6 @@
 			"ImportPath": "github.com/kelseyhightower/envconfig",
 			"Comment": "v1.0.0-6-ge904934",
 			"Rev": "e9049346b6aae8e6ad500c5a4519ad029439d660"
-		},
-		{
-			"ImportPath": "gopkg.in/fatih/pool.v2",
-			"Rev": "dae43b8a8a190d1f2b5908e2f6dd02481e7d59e9"
 		}
 	]
 }

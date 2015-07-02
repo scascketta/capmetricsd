@@ -1,12 +1,13 @@
 package capmetro
 
 import (
+	"encoding/json"
+	"fmt"
+	"github.com/scascketta/CapMetrics/Godeps/_workspace/src/github.com/boltdb/bolt"
 	"log"
 	"os"
 	"sync"
 	"time"
-
-	r "github.com/scascketta/CapMetrics/Godeps/_workspace/src/github.com/dancannon/gorethink"
 )
 
 const (
@@ -41,7 +42,7 @@ func filterUpdatedVehicles(vehicles []VehicleLocation, fh *FetchHistory) []Vehic
 		// reject location updates if timestamp hasn't changed or is more than 1 minute in the future
 		if !updateTime.Equal(v.Time) && v.Time.Before(threshold) {
 			updated = append(updated, v)
-			dlog.Printf("Vehicle %s updated at %s\n", v.VehicleID, v.Time.Format("2006-01-02T15:04:05-07:00"))
+			// dlog.Printf("Vehicle %s updated at %s\n", v.VehicleID, v.Time.Format("2006-01-02T15:04:05-07:00"))
 		}
 	}
 	return updated
@@ -54,11 +55,11 @@ func prepRoute(route string, fh *FetchHistory) {
 }
 
 // LogVehicleLocations calls setupConn for a *gorethink.Session to pass to logVehicleLocations and closes it afterwards.
-func LogVehicleLocations(setupConn func() *r.Session, fh *FetchHistory) func() error {
+func LogVehicleLocations(setupConn func() *bolt.DB, fh *FetchHistory) func() error {
 	return func() error {
-		session := setupConn()
-		err := logVehicleLocations(session, fh)
-		session.Close()
+		db := setupConn()
+		defer db.Close()
+		err := logVehicleLocations(db, fh)
 		return err
 	}
 }
@@ -66,7 +67,7 @@ func LogVehicleLocations(setupConn func() *r.Session, fh *FetchHistory) func() e
 // logVehicleLocations fetches vehicle locations from CapMetro and inserts new
 // locations into the database. It also tracks stale responses to determine when
 //  to sleep.
-func logVehicleLocations(session *r.Session, fh *FetchHistory) error {
+func logVehicleLocations(db *bolt.DB, fh *FetchHistory) error {
 	locationsByRoute, err := FetchVehicles()
 	if err != nil {
 		return err
@@ -76,20 +77,47 @@ func logVehicleLocations(session *r.Session, fh *FetchHistory) error {
 	for route, rl := range locationsByRoute {
 		wg.Add(1)
 		go func(route string, rl RouteLocations) {
+
 			prepRoute(route, fh)
+
 			updated := filterUpdatedVehicles(rl.Locations, fh)
+
 			if len(updated) == 0 {
 				fh.StaleResponses[route]++
 				dlog.Printf("No vehicles in response for route: %s.", route)
 			} else {
 				fh.StaleResponses[route] = 0
-				_, err = r.Table("vehicle_position").Insert(r.Expr(updated)).Run(session)
-				if err != nil {
-					// let goroutines fail without affecting others
-					elog.Println(err)
-				} else {
-					dlog.Printf("Log %d vehicles, route %s.\n", len(updated), route)
+
+				var wg sync.WaitGroup
+				for _, location := range updated {
+					wg.Add(1)
+
+					go func(location VehicleLocation) {
+
+						err := db.Batch(func(tx *bolt.Tx) error {
+							bucket, err := tx.CreateBucketIfNotExists([]byte("vehicle_locations"))
+							if err != nil {
+								return err
+							}
+
+							key := fmt.Sprintf("%s:%s", location.Time.Format("2006-01-02T15:04:05-07:00"), location.TripID)
+							jsonVal, _ := json.Marshal(location)
+							err = bucket.Put([]byte(key), jsonVal)
+							return err
+						})
+
+						if err != nil {
+							// let goroutines fail without affecting others
+							elog.Println(err)
+						}
+						wg.Done()
+					}(location)
+
 				}
+				wg.Wait()
+
+				// FIXME: Do this once for every slice of updated vehicles
+				dlog.Printf("Log %d vehicles, route %s.\n", len(updated), route)
 			}
 			wg.Done()
 		}(route, rl)
