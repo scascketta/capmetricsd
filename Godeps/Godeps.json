@@ -1,5 +1,5 @@
 {
-	"ImportPath": "github.com/scascketta/CapMetrics",
+	"ImportPath": "github.com/scascketta/capmetricsd",
 	"GoVersion": "go1.4",
 	"Deps": [
 		{
@@ -13,7 +13,7 @@
 		},
 		{
 			"ImportPath": "github.com/golang/protobuf/proto",
-			"Rev": "5677a0e3d5e89854c9974e1256839ee23f8233ca"
+			"Rev": "ab974be44dc3b7b8a1fb306fb32fe9b9f3864b3d"
 		},
 		{
 			"ImportPath": "github.com/kelseyhightower/envconfig",
