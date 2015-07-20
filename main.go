@@ -6,11 +6,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/scascketta/CapMetrics/agency/capmetro"
-	"github.com/scascketta/CapMetrics/task"
+	"github.com/scascketta/capmetricsd/agency/capmetro"
+	"github.com/scascketta/capmetricsd/task"
 
-	"github.com/boltdb/bolt"
-	"github.com/kelseyhightower/envconfig"
+	"github.com/scascketta/capmetricsd/Godeps/_workspace/src/github.com/boltdb/bolt"
+	"github.com/scascketta/capmetricsd/Godeps/_workspace/src/github.com/kelseyhightower/envconfig"
 )
 
 var (
@@ -50,9 +50,17 @@ func main() {
 	if err != nil {
 		elog.Fatal(err)
 	}
+
 	dlog.Println("config:", cfg)
 
 	fh := capmetro.NewFetchHistory()
-	locationTask := task.NewDynamicRepeatTask(LogVehiclesNotifyCronitor(setupConn, fh), 30*time.Second, "LogVehiclesNotifyCronitor", capmetro.UpdateInterval(cfg.MaxRetries, fh))
+
+	locationTask := task.NewDynamicRepeatTask(
+		LogVehiclesNotifyCronitor(setupConn, fh),
+		30*time.Second,
+		"LogVehiclesNotifyCronitor",
+		capmetro.UpdateInterval(cfg.MaxRetries, fh),
+	)
+
 	task.StartTasks(locationTask)
 }

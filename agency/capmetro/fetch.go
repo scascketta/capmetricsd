@@ -1,9 +1,9 @@
 package capmetro
 
 import (
-	"encoding/json"
-	"fmt"
-	"github.com/scascketta/CapMetrics/Godeps/_workspace/src/github.com/boltdb/bolt"
+	"github.com/scascketta/capmetricsd/Godeps/_workspace/src/github.com/boltdb/bolt"
+	"github.com/scascketta/capmetricsd/Godeps/_workspace/src/github.com/golang/protobuf/proto"
+	"github.com/scascketta/capmetricsd/agency"
 	"log"
 	"os"
 	"sync"
@@ -13,6 +13,7 @@ import (
 const (
 	NormalDuration   = 30 * time.Second // Duration to wait between fetching locations when at least one route is active
 	ExtendedDuration = 10 * time.Minute // Duration to wait between fetching locations when all routes are inactive
+	Iso8601Format    = "2006-01-02T15:04:05-07:00"
 )
 
 var (
@@ -23,7 +24,7 @@ var (
 // FetchHistory contains the history of vehicle location fetches, including when a vehicle was last updated,
 // and how many responses were "stale" for each route.
 type FetchHistory struct {
-	LastUpdated    map[string]time.Time
+	UpdateHistory  map[string]time.Time
 	StaleResponses map[string]int
 }
 
@@ -33,17 +34,27 @@ func NewFetchHistory() *FetchHistory {
 
 // filterUpdatedVehicles returns the VehicleLocation structs whose timestamp has
 // changed since the last update
-func filterUpdatedVehicles(vehicles []VehicleLocation, fh *FetchHistory) []VehicleLocation {
-	updated := []VehicleLocation{}
-	for _, v := range vehicles {
-		updateTime, _ := fh.LastUpdated[v.VehicleID]
-		fh.LastUpdated[v.VehicleID] = v.Time
-		threshold := time.Now().Add(time.Minute)
+func filterUpdatedVehicles(locations []agency.VehicleLocation, fh *FetchHistory) []agency.VehicleLocation {
+	updated := []agency.VehicleLocation{}
+
+	for _, loc := range locations {
+		vehicleID := loc.GetVehicleId()
+		timestamp := time.Unix(loc.GetTimestamp(), 0)
+		lastUpdate, _ := fh.UpdateHistory[vehicleID]
+
+		fh.UpdateHistory[vehicleID] = timestamp
+
 		// reject location updates if timestamp hasn't changed or is more than 1 minute in the future
-		if !updateTime.Equal(v.Time) && v.Time.Before(threshold) {
-			updated = append(updated, v)
-			// dlog.Printf("Vehicle %s updated at %s\n", v.VehicleID, v.Time.Format("2006-01-02T15:04:05-07:00"))
+		threshold := time.Now().Add(time.Minute)
+		if lastUpdate.Equal(timestamp) && timestamp.After(threshold) {
+			continue
 		}
+
+		if len(loc.GetTripId()) == 0 {
+			continue
+		}
+
+		updated = append(updated, loc)
 	}
 	return updated
 }
@@ -61,6 +72,35 @@ func LogVehicleLocations(setupConn func() *bolt.DB, fh *FetchHistory) func() err
 		defer db.Close()
 		err := logVehicleLocations(db, fh)
 		return err
+	}
+}
+
+func storeLocation(location agency.VehicleLocation, db *bolt.DB) {
+	err := db.Batch(func(tx *bolt.Tx) error {
+		topBucket, err := tx.CreateBucketIfNotExists([]byte("vehicle_locations"))
+		if err != nil {
+			return err
+		}
+		tripBucket, err := topBucket.CreateBucketIfNotExists([]byte(location.GetTripId()))
+		if err != nil {
+			return err
+		}
+
+		data, err := proto.Marshal(&location)
+		if err != nil {
+			return err
+		}
+
+		isoTimestamp := time.Now().UTC().Format(Iso8601Format)
+		err = tripBucket.Put([]byte(isoTimestamp), data)
+		if err != nil {
+			elog.Fatal(err)
+		}
+		return err
+	})
+
+	if err != nil {
+		elog.Println(err)
 	}
 }
 
@@ -88,33 +128,9 @@ func logVehicleLocations(db *bolt.DB, fh *FetchHistory) error {
 			} else {
 				fh.StaleResponses[route] = 0
 
-				var wg sync.WaitGroup
 				for _, location := range updated {
-					wg.Add(1)
-
-					go func(location VehicleLocation) {
-
-						err := db.Batch(func(tx *bolt.Tx) error {
-							bucket, err := tx.CreateBucketIfNotExists([]byte("vehicle_locations"))
-							if err != nil {
-								return err
-							}
-
-							key := fmt.Sprintf("%s:%s", location.Time.Format("2006-01-02T15:04:05-07:00"), location.TripID)
-							jsonVal, _ := json.Marshal(location)
-							err = bucket.Put([]byte(key), jsonVal)
-							return err
-						})
-
-						if err != nil {
-							// let goroutines fail without affecting others
-							elog.Println(err)
-						}
-						wg.Done()
-					}(location)
-
+					storeLocation(location, db)
 				}
-				wg.Wait()
 
 				// FIXME: Do this once for every slice of updated vehicles
 				dlog.Printf("Log %d vehicles, route %s.\n", len(updated), route)
