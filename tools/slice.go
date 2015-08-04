@@ -3,8 +3,8 @@ package tools
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/boltdb/bolt"
-	"github.com/golang/protobuf/proto"
+	"github.com/scascketta/capmetricsd/Godeps/_workspace/src/github.com/boltdb/bolt"
+	"github.com/scascketta/capmetricsd/Godeps/_workspace/src/github.com/golang/protobuf/proto"
 	"github.com/scascketta/capmetricsd/daemon/agency"
 	"github.com/scascketta/capmetricsd/daemon/agency/capmetro"
 	"log"

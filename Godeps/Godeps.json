@@ -1,15 +1,23 @@
 {
 	"ImportPath": "github.com/scascketta/capmetricsd",
 	"GoVersion": "go1.4",
+	"Packages": [
+		"./..."
+	],
 	"Deps": [
-		{
-			"ImportPath": "gist.github.com/scascketta/fcced4a6518f68189666",
-			"Rev": "23b4845a629e52c36da72b0bee3057c9c04cc768"
-		},
 		{
 			"ImportPath": "github.com/boltdb/bolt",
 			"Comment": "v1.0-111-g04a3e85",
 			"Rev": "04a3e85793043e76d41164037d0d7f9d53eecae3"
+		},
+		{
+			"ImportPath": "github.com/cheggaaa/pb",
+			"Rev": "e3e099c334cd89a6fe993f0683eaafd85604290f"
+		},
+		{
+			"ImportPath": "github.com/codegangsta/cli",
+			"Comment": "1.2.0-137-gbca61c4",
+			"Rev": "bca61c476e3c752594983e4c9bcd5f62fb09f157"
 		},
 		{
 			"ImportPath": "github.com/golang/protobuf/proto",
