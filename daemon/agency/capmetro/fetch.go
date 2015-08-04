@@ -3,7 +3,7 @@ package capmetro
 import (
 	"github.com/scascketta/capmetricsd/Godeps/_workspace/src/github.com/boltdb/bolt"
 	"github.com/scascketta/capmetricsd/Godeps/_workspace/src/github.com/golang/protobuf/proto"
-	"github.com/scascketta/capmetricsd/agency"
+	"github.com/scascketta/capmetricsd/daemon/agency"
 	"log"
 	"os"
 	"sync"
@@ -14,6 +14,7 @@ const (
 	NormalDuration   = 30 * time.Second // Duration to wait between fetching locations when at least one route is active
 	ExtendedDuration = 10 * time.Minute // Duration to wait between fetching locations when all routes are inactive
 	Iso8601Format    = "2006-01-02T15:04:05-07:00"
+	BucketName       = "vehicle_locations"
 )
 
 var (
@@ -77,7 +78,7 @@ func LogVehicleLocations(setupConn func() *bolt.DB, fh *FetchHistory) func() err
 
 func storeLocation(location agency.VehicleLocation, db *bolt.DB) {
 	err := db.Batch(func(tx *bolt.Tx) error {
-		topBucket, err := tx.CreateBucketIfNotExists([]byte("vehicle_locations"))
+		topBucket, err := tx.CreateBucketIfNotExists([]byte(BucketName))
 		if err != nil {
 			return err
 		}
@@ -91,8 +92,9 @@ func storeLocation(location agency.VehicleLocation, db *bolt.DB) {
 			return err
 		}
 
-		isoTimestamp := time.Now().UTC().Format(Iso8601Format)
-		err = tripBucket.Put([]byte(isoTimestamp), data)
+		ts := location.GetTimestamp()
+		key := string(ts)
+		err = tripBucket.Put([]byte(key), data)
 		if err != nil {
 			elog.Fatal(err)
 		}

@@ -6,6 +6,7 @@ import (
 	"github.com/boltdb/bolt"
 	"github.com/cheggaaa/pb"
 	"github.com/golang/protobuf/proto"
+	"github.com/scascketta/capmetricsd/daemon/agency"
 	"io"
 	"log"
 	"os"
@@ -18,7 +19,7 @@ import (
 
 const (
 	Iso8601Format = "2006-01-02T15:04:05-07:00"
-	BucketName    = "vehicle_positions"
+	BucketName    = "vehicle_locations"
 )
 
 var (
@@ -68,7 +69,7 @@ func countBucketKeys(db *bolt.DB) int {
 
 // assumes CSV field names in order
 // vehicle_id,dist_traveled,speed,lon,route_id,trip_headsign,timestamp,lat,trip_id
-func unmarshalCSV(record []string) *VehicleLocation {
+func unmarshalCSV(record []string) *agency.VehicleLocation {
 	vehicleID, speedStr, lonStr, routeID, timeStr, latStr, tripID := record[0], record[2], record[3], record[4], record[6], record[7], record[8]
 
 	speed, _ := strconv.ParseFloat(speedStr, 32)
@@ -76,7 +77,7 @@ func unmarshalCSV(record []string) *VehicleLocation {
 	lat, _ := strconv.ParseFloat(latStr, 32)
 	timestamp, _ := time.Parse(Iso8601Format, timeStr)
 
-	loc := &VehicleLocation{
+	loc := &agency.VehicleLocation{
 		VehicleId: proto.String(vehicleID),
 		Timestamp: proto.Int64(timestamp.Unix()),
 		Speed:     proto.Float32(float32(speed)),
@@ -98,8 +99,6 @@ func storeBolt(record []string) func(tx *bolt.Tx) error {
 		loc := unmarshalCSV(record)
 
 		tripID := loc.GetTripId()
-		timestamp := loc.GetTimestamp()
-		timeStr := time.Unix(timestamp, 0).Format(Iso8601Format)
 
 		tripBucket, err := topBucket.CreateBucketIfNotExists([]byte(tripID))
 		if err != nil {
@@ -110,7 +109,8 @@ func storeBolt(record []string) func(tx *bolt.Tx) error {
 		if err != nil {
 			return err
 		}
-		err = tripBucket.Put([]byte(timeStr), data)
+		key := strconv.FormatInt(loc.GetTimestamp(), 10)
+		err = tripBucket.Put([]byte(key), data)
 		if err != nil {
 			return err
 		}
@@ -177,7 +177,7 @@ func Ingest(pattern string) {
 	start := time.Now()
 
 	for _, fname := range files {
-		err, count := processFile(fname, db)
+		err, count := ProcessFile(fname, db)
 		if err != nil {
 			log.Fatal(err)
 		}

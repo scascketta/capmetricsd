@@ -2,7 +2,7 @@ package capmetro
 
 import (
 	"github.com/scascketta/capmetricsd/Godeps/_workspace/src/github.com/golang/protobuf/proto"
-	"github.com/scascketta/capmetricsd/agency"
+	"github.com/scascketta/capmetricsd/daemon/agency"
 	"io/ioutil"
 	"net/http"
 )
