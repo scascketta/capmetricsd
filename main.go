@@ -9,6 +9,10 @@ import (
 	"strconv"
 )
 
+const (
+	DB_ENV = "CAPMETRICSDB"
+)
+
 func main() {
 	app := cli.NewApp()
 
@@ -28,6 +32,12 @@ func main() {
 			Name:  "get",
 			Usage: "get all data between two unix timestamps",
 			Action: func(ctx *cli.Context) {
+				dbPath := os.Getenv(DB_ENV)
+				if dbPath == "" {
+					log.Println("Missing env var:", DB_ENV)
+					return
+				}
+
 				dest := ctx.Args()[0]
 
 				errMsg := "Error parsing time %s: %s.\n"
@@ -44,7 +54,7 @@ func main() {
 					return
 				}
 
-				err = tools.GetData("./capmetrics.db", dest, minStr, maxStr)
+				err = tools.GetData(dbPath, dest, minStr, maxStr)
 				if err != nil {
 					log.Println(err)
 				}
