@@ -59,7 +59,7 @@ func Process(prefix string, spec interface{}) error {
 			req := typeOfSpec.Field(i).Tag.Get("required")
 			if value == "" {
 				if req == "true" {
-					return ErrRequiredKey
+					return fmt.Errorf("Required key (%s) missing value", typeOfSpec.Field(i).Name)
 				}
 				continue
 			}

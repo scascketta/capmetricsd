@@ -10,7 +10,7 @@ import (
 	"github.com/scascketta/capmetricsd/daemon/task"
 
 	"github.com/scascketta/capmetricsd/Godeps/_workspace/src/github.com/boltdb/bolt"
-	"github.com/scascketta/capmetricsd/Godeps/_workspace/src/github.com/kelseyhightower/envconfig"
+	"github.com/scascketta/capmetricsd/Godeps/_workspace/src/github.com/scascketta/envconfig"
 )
 
 var (

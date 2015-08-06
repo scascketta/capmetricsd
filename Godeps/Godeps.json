@@ -24,9 +24,9 @@
 			"Rev": "ab974be44dc3b7b8a1fb306fb32fe9b9f3864b3d"
 		},
 		{
-			"ImportPath": "github.com/kelseyhightower/envconfig",
-			"Comment": "v1.0.0-22-g4e0792c",
-			"Rev": "4e0792c28c6af6d74af7bac93eedb34a29107010"
+			"ImportPath": "github.com/scascketta/envconfig",
+			"Comment": "v1.0.0-23-gcfd0523",
+			"Rev": "cfd0523d50149260297b82228586c8fcb9ae6acd"
 		}
 	]
 }
