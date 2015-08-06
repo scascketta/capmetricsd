@@ -16,17 +16,18 @@ import (
 var (
 	dlog           = log.New(os.Stdout, "[DBG] ", log.LstdFlags|log.Lshortfile)
 	elog           = log.New(os.Stderr, "[ERR] ", log.LstdFlags|log.Lshortfile)
-	cfg            = config{}
+	cfg            = Config{}
 	cronitorClient = http.Client{Timeout: 10 * time.Second}
 )
 
-type config struct {
-	CronitorURL string
-	MaxRetries  int
+type Config struct {
+	CronitorURL string `required:"true"`
+	Retries     int    `required:"true"`
+	DbPath      string `required:"true"`
 }
 
 func setupConn() *bolt.DB {
-	db, err := bolt.Open("./test.db", 0600, &bolt.Options{Timeout: 5 * time.Second})
+	db, err := bolt.Open(cfg.DbPath, 0600, &bolt.Options{Timeout: 5 * time.Second})
 	if err != nil {
 		log.Fatal("Fatal error while opening bolt db: ", err)
 	}
@@ -46,12 +47,8 @@ func LogVehiclesNotifyCronitor(setupConn func() *bolt.DB, fh *capmetro.FetchHist
 }
 
 func Start() {
-	if err := envconfig.Process("cmdata", &cfg); err != nil {
+	if err := envconfig.Process("cm", &cfg); err != nil {
 		elog.Fatal(err)
-	}
-
-	if cfg.CronitorURL == "" || cfg.MaxRetries == 0 {
-		elog.Fatal("Missing environment variables")
 	}
 
 	dlog.Println("config:", cfg)
@@ -62,7 +59,7 @@ func Start() {
 		LogVehiclesNotifyCronitor(setupConn, fh),
 		30*time.Second,
 		"LogVehiclesNotifyCronitor",
-		capmetro.UpdateInterval(cfg.MaxRetries, fh),
+		capmetro.UpdateInterval(cfg.Retries, fh),
 	)
 
 	task.StartTasks(locationTask)

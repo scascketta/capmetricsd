@@ -25,8 +25,8 @@
 		},
 		{
 			"ImportPath": "github.com/kelseyhightower/envconfig",
-			"Comment": "v1.0.0-6-ge904934",
-			"Rev": "e9049346b6aae8e6ad500c5a4519ad029439d660"
+			"Comment": "v1.0.0-22-g4e0792c",
+			"Rev": "4e0792c28c6af6d74af7bac93eedb34a29107010"
 		}
 	]
 }
