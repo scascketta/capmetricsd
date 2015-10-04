@@ -6,11 +6,14 @@ import (
 	"github.com/scascketta/capmetricsd/tools"
 	"log"
 	"os"
-	"strconv"
 )
 
 const (
 	DB_ENV = "CAPMETRICSDB"
+)
+
+var (
+	elog = log.New(os.Stderr, "[ERR] ", log.LstdFlags|log.Lshortfile)
 )
 
 func main() {
@@ -30,7 +33,7 @@ func main() {
 		},
 		{
 			Name:  "get",
-			Usage: "get all data between two unix timestamps",
+			Usage: "get all data between two POSIX timestamps",
 			Action: func(ctx *cli.Context) {
 				dbPath := os.Getenv(DB_ENV)
 				if dbPath == "" {
@@ -38,25 +41,17 @@ func main() {
 					return
 				}
 
+				if len(ctx.Args()) < 3 {
+					log.Fatal("Missing command arguments")
+				}
+
 				dest := ctx.Args()[0]
+				min := ctx.Args()[1]
+				max := ctx.Args()[2]
 
-				errMsg := "Error parsing time %s: %s.\n"
-				minUnix, maxUnix := ctx.Args()[1], ctx.Args()[2]
-
-				minStr, err := strconv.ParseInt(minUnix, 10, 64)
+				err := tools.GetData(dbPath, dest, min, max)
 				if err != nil {
-					log.Printf(errMsg, minUnix, err)
-					return
-				}
-				maxStr, err := strconv.ParseInt(maxUnix, 10, 64)
-				if err != nil {
-					log.Printf(errMsg, maxUnix, err)
-					return
-				}
-
-				err = tools.GetData(dbPath, dest, minStr, maxStr)
-				if err != nil {
-					log.Println(err)
+					elog.Println(err)
 				}
 			},
 		},
@@ -64,7 +59,27 @@ func main() {
 			Name:  "ingest",
 			Usage: "ingest historical CSV data",
 			Action: func(ctx *cli.Context) {
+				if len(ctx.Args()) < 1 {
+					log.Fatal("Missing pattern location to CSV data")
+				}
 				tools.Ingest(ctx.Args()[0])
+			},
+		},
+		{
+			Name:  "stats",
+			Usage: "stats on a Bolt database",
+			Action: func(ctx *cli.Context) {
+				db := os.Getenv(DB_ENV)
+				if db == "" {
+					if len(ctx.Args()) == 0 {
+						log.Fatalf("missing path to Bolt database (either an env var - %s) or arg\n", DB_ENV)
+					}
+					db = ctx.Args()[0]
+				}
+				err := tools.PrintBoltStats(db)
+				if err != nil {
+					log.Fatal(err)
+				}
 			},
 		},
 	}

@@ -22,10 +22,6 @@ const (
 	BucketName    = "vehicle_locations"
 )
 
-var (
-	elog = log.New(os.Stderr, "[ERR] ", log.LstdFlags|log.Lshortfile)
-)
-
 func countLines(fname string) (int, error) {
 	r, err := os.Open(fname)
 	if err != nil {
@@ -109,7 +105,10 @@ func storeBolt(record []string) func(tx *bolt.Tx) error {
 		if err != nil {
 			return err
 		}
-		key := strconv.FormatInt(loc.GetTimestamp(), 10)
+
+		ts := loc.GetTimestamp()
+		key := strconv.Itoa(int(ts))
+
 		err = tripBucket.Put([]byte(key), data)
 		if err != nil {
 			return err
@@ -165,14 +164,14 @@ func ProcessFile(fname string, db *bolt.DB) (error, int) {
 func Ingest(pattern string) {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	db, err := bolt.Open("capmetrics.db", 0600, nil)
+	db, err := bolt.Open(os.Getenv("CAPMETRICSDB"), 0600, nil)
 	if err != nil {
 		elog.Fatal(err)
 	}
 
 	defer db.Close()
-
 	files, _ := filepath.Glob(pattern)
+	log.Printf("# of Files found with pattern %s: %v\n", pattern, len(files))
 	total := 0
 	start := time.Now()
 

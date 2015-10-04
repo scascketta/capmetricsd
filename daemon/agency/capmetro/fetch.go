@@ -6,6 +6,7 @@ import (
 	"github.com/scascketta/capmetricsd/daemon/agency"
 	"log"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -13,7 +14,7 @@ import (
 const (
 	NormalDuration   = 30 * time.Second // Duration to wait between fetching locations when at least one route is active
 	ExtendedDuration = 10 * time.Minute // Duration to wait between fetching locations when all routes are inactive
-	Iso8601Format    = "2006-01-02T15:04:05-07:00"
+	UnixFormat       = "1136214245"
 	BucketName       = "vehicle_locations"
 )
 
@@ -92,8 +93,10 @@ func storeLocation(location agency.VehicleLocation, db *bolt.DB) {
 			return err
 		}
 
+		// key is POSIX time
 		ts := location.GetTimestamp()
-		key := string(ts)
+		key := strconv.Itoa(int(ts))
+
 		err = tripBucket.Put([]byte(key), data)
 		if err != nil {
 			elog.Fatal(err)
