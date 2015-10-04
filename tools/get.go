@@ -2,21 +2,16 @@ package tools
 
 import (
 	"bytes"
-	"encoding/json"
+	"encoding/csv"
 	"github.com/scascketta/capmetricsd/Godeps/_workspace/src/github.com/boltdb/bolt"
 	"github.com/scascketta/capmetricsd/Godeps/_workspace/src/github.com/golang/protobuf/proto"
 	"github.com/scascketta/capmetricsd/daemon/agency"
 	"github.com/scascketta/capmetricsd/daemon/agency/capmetro"
 	"log"
 	"os"
+	"strconv"
+	"time"
 )
-
-type VehicleLocationCollection struct {
-	Count     int                      `json:"count"`
-	StartDate string                   `json:"start_date"`
-	EndDate   string                   `json:"end_date"`
-	Data      []agency.VehicleLocation `json:"data"`
-}
 
 func readBoltData(db *bolt.DB, min, max string) (*[]agency.VehicleLocation, error) {
 	locations := []agency.VehicleLocation{}
@@ -46,15 +41,10 @@ func readBoltData(db *bolt.DB, min, max string) (*[]agency.VehicleLocation, erro
 	return &locations, err
 }
 
-func writeData(dest, min, max string, locations *[]agency.VehicleLocation) error {
+func writeData(dest string, locations *[]agency.VehicleLocation) error {
 	log.Printf("Writing %d vehicle locations to %s.\n", len(*locations), dest)
 
-	coll := VehicleLocationCollection{
-		Count:     len(*locations),
-		StartDate: min,
-		EndDate:   max,
-		Data:      *locations,
-	}
+	headers := []string{"vehicle_id", "timestamp", "iso8601", "speed", "route_id", "trip_id", "latitude", "longitude"}
 
 	f, err := os.Create(dest)
 	if err != nil {
@@ -62,10 +52,28 @@ func writeData(dest, min, max string, locations *[]agency.VehicleLocation) error
 	}
 	defer f.Close()
 
-	enc := json.NewEncoder(f)
-	if err = enc.Encode(coll); err != nil {
-		log.Println(err)
+	w := csv.NewWriter(f)
+	if err = w.Write(headers); err != nil {
+		log.Println("Error writing CSV header record")
 		return err
+	}
+
+	for _, loc := range *locations {
+		t := time.Unix(loc.GetTimestamp(), 0).UTC()
+		record := []string{
+			loc.GetVehicleId(),
+			strconv.Itoa(int(loc.GetTimestamp())),
+			t.Local().Format(Iso8601Format),
+			strconv.FormatFloat(float64(loc.GetSpeed()), 'f', -1, 32),
+			loc.GetRouteId(),
+			loc.GetTripId(),
+			strconv.FormatFloat(float64(loc.GetLatitude()), 'f', -1, 32),
+			strconv.FormatFloat(float64(loc.GetLongitude()), 'f', -1, 32),
+		}
+		if err = w.Write(record); err != nil {
+			log.Println("Error writing CSV records")
+			return err
+		}
 	}
 
 	return nil
@@ -85,6 +93,6 @@ func GetData(dbPath, dest string, min string, max string) error {
 		return err
 	}
 
-	err = writeData(dest, min, max, locations)
+	err = writeData(dest, locations)
 	return err
 }
