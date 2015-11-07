@@ -9,7 +9,8 @@ import (
 )
 
 const (
-	DB_ENV = "CAPMETRICSDB"
+	DB_ENV    = "CAPMETRICSDB"
+	GET_USAGE = "USAGE: capmetricsd get db dest min max"
 )
 
 var (
@@ -35,21 +36,16 @@ func main() {
 			Name:  "get",
 			Usage: "get all data between two POSIX timestamps",
 			Action: func(ctx *cli.Context) {
-				dbPath := os.Getenv(DB_ENV)
-				if dbPath == "" {
-					log.Println("Missing env var:", DB_ENV)
-					return
+				if len(ctx.Args()) < 4 {
+					log.Fatal("Missing command arguments\n", GET_USAGE)
 				}
 
-				if len(ctx.Args()) < 3 {
-					log.Fatal("Missing command arguments")
-				}
+				db := ctx.Args()[0]
+				dest := ctx.Args()[1]
+				min := ctx.Args()[2]
+				max := ctx.Args()[3]
 
-				dest := ctx.Args()[0]
-				min := ctx.Args()[1]
-				max := ctx.Args()[2]
-
-				err := tools.GetData(dbPath, dest, min, max)
+				err := tools.GetData(db, dest, min, max)
 				if err != nil {
 					elog.Println(err)
 				}
