@@ -44,7 +44,7 @@ func readBoltData(db *bolt.DB, min, max string) (*[]agency.VehicleLocation, erro
 func writeData(dest string, locations *[]agency.VehicleLocation) error {
 	log.Printf("Writing %d vehicle locations to %s.\n", len(*locations), dest)
 
-	headers := []string{"vehicle_id", "timestamp", "iso8601", "speed", "route_id", "trip_id", "latitude", "longitude"}
+	headers := []string{"vehicle_id", "timestamp", "speed", "route_id", "trip_id", "latitude", "longitude"}
 
 	f, err := os.Create(dest)
 	if err != nil {
@@ -62,7 +62,6 @@ func writeData(dest string, locations *[]agency.VehicleLocation) error {
 		t := time.Unix(loc.GetTimestamp(), 0).UTC()
 		record := []string{
 			loc.GetVehicleId(),
-			strconv.Itoa(int(loc.GetTimestamp())),
 			t.Local().Format(Iso8601Format),
 			strconv.FormatFloat(float64(loc.GetSpeed()), 'f', -1, 32),
 			loc.GetRouteId(),
