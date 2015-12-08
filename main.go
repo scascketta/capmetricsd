@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/scascketta/capmetricsd/Godeps/_workspace/src/github.com/codegangsta/cli"
 	"github.com/scascketta/capmetricsd/daemon"
 	"github.com/scascketta/capmetricsd/tools"
@@ -9,8 +10,9 @@ import (
 )
 
 const (
-	DB_ENV    = "CAPMETRICSDB"
-	GET_USAGE = "USAGE: capmetricsd get db dest min max"
+	DB_ENV      = "CAPMETRICSDB"
+	GET_USAGE   = "USAGE: capmetricsd get db dest min max"
+	START_USAGE = "USAGE: capmetricsd start -t target-url --db db-path [--cronitor cronitor-url]"
 )
 
 var (
@@ -27,9 +29,33 @@ func main() {
 		{
 			Name:  "start",
 			Usage: "start the capmetrics daemon (in the foreground)",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "target-url, t",
+					Usage: "URL to a GTFS-realtime Vehicle Positions feed",
+				},
+				cli.StringFlag{
+					Name:  "db-path, db",
+					Usage: "Path to a BoltDB database.",
+				},
+				cli.StringFlag{
+					Name:  "cronitor-url, cron",
+					Usage: "(OPTIONAL) URL to send requests to notify Cronitor (or comparable monitoring service)",
+				},
+			},
 			Action: func(ctx *cli.Context) {
-				log.Println("Launching capmetrics daemon")
-				daemon.Start()
+				target := ctx.String("target-url")
+				db := ctx.String("db-path")
+
+				if target == "" || db == "" {
+					fmt.Println(START_USAGE)
+					return
+				}
+
+				cronitor := ctx.String("cronitor-url")
+
+				log.Printf("Starting capmetrics daemon -- target: %s, dbPath: %s, cronitor URL: %s\n", target, db, cronitor)
+				daemon.Start(target, cronitor, db)
 			},
 		},
 		{

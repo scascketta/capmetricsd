@@ -2,13 +2,13 @@
 	"ImportPath": "github.com/scascketta/capmetricsd",
 	"GoVersion": "go1.4",
 	"Packages": [
-		"./..."
+		"."
 	],
 	"Deps": [
 		{
 			"ImportPath": "github.com/boltdb/bolt",
-			"Comment": "v1.0-111-g04a3e85",
-			"Rev": "04a3e85793043e76d41164037d0d7f9d53eecae3"
+			"Comment": "v1.0-113-g980670a",
+			"Rev": "980670afcebfd86727505b3061d8667195234816"
 		},
 		{
 			"ImportPath": "github.com/cheggaaa/pb",
@@ -24,9 +24,9 @@
 			"Rev": "ab974be44dc3b7b8a1fb306fb32fe9b9f3864b3d"
 		},
 		{
-			"ImportPath": "github.com/scascketta/envconfig",
-			"Comment": "v1.0.0-23-gcfd0523",
-			"Rev": "cfd0523d50149260297b82228586c8fcb9ae6acd"
+			"ImportPath": "github.com/montanaflynn/stats",
+			"Comment": "0.2.0-37-g5bd4bff",
+			"Rev": "5bd4bff9c2bc5ed0f73abbcbffcfae45b27abc47"
 		}
 	]
 }

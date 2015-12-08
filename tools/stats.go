@@ -2,7 +2,7 @@ package tools
 
 import (
 	"github.com/scascketta/capmetricsd/Godeps/_workspace/src/github.com/boltdb/bolt"
-	"github.com/scascketta/capmetricsd/daemon/agency/capmetro"
+	"github.com/scascketta/capmetricsd/daemon"
 	"log"
 	"os"
 	"strconv"
@@ -23,10 +23,10 @@ func PrintBoltStats(path string) error {
 	}
 
 	return db.View(func(tx *bolt.Tx) error {
-		log.Printf("Inspecting keys in bucket: %s\n", capmetro.BucketName)
-		b := tx.Bucket([]byte(capmetro.BucketName))
+		log.Printf("Inspecting keys in bucket: %s\n", daemon.BUCKET_NAME)
+		b := tx.Bucket([]byte(daemon.BUCKET_NAME))
 		if b == nil {
-			elog.Fatalf("Nonexistent bucket: %s\n", capmetro.BucketName)
+			elog.Fatalf("Nonexistent bucket: %s\n", daemon.BUCKET_NAME)
 		}
 		keys := 0
 		minTime := MaxTime

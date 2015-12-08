@@ -11,7 +11,7 @@ It is generated from these files:
 It has these top-level messages:
     VehicleLocation
 */
-package agency
+package gtfsrt
 
 import proto "github.com/scascketta/capmetricsd/Godeps/_workspace/src/github.com/golang/protobuf/proto"
 import math "math"

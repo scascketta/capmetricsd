@@ -5,26 +5,27 @@ import (
 	"encoding/csv"
 	"github.com/scascketta/capmetricsd/Godeps/_workspace/src/github.com/boltdb/bolt"
 	"github.com/scascketta/capmetricsd/Godeps/_workspace/src/github.com/golang/protobuf/proto"
-	"github.com/scascketta/capmetricsd/daemon/agency"
-	"github.com/scascketta/capmetricsd/daemon/agency/capmetro"
+	"github.com/scascketta/capmetricsd/daemon"
+	"github.com/scascketta/capmetricsd/daemon/gtfsrt"
+
 	"log"
 	"os"
 	"strconv"
 	"time"
 )
 
-func readBoltData(db *bolt.DB, min, max string) (*[]agency.VehicleLocation, error) {
-	locations := []agency.VehicleLocation{}
+func readBoltData(db *bolt.DB, min, max string) (*[]gtfsrt.VehicleLocation, error) {
+	locations := []gtfsrt.VehicleLocation{}
 
 	err := db.View(func(tx *bolt.Tx) error {
-		topBucket := tx.Bucket([]byte(capmetro.BucketName))
+		topBucket := tx.Bucket([]byte(daemon.BUCKET_NAME))
 
 		err := topBucket.ForEach(func(tripID, _ []byte) error {
 			tripBucket := topBucket.Bucket(tripID)
 			c := tripBucket.Cursor()
 
 			for k, v := c.Seek([]byte(min)); k != nil && bytes.Compare(k, []byte(max)) <= 0; k, v = c.Next() {
-				var loc agency.VehicleLocation
+				var loc gtfsrt.VehicleLocation
 				if err := proto.Unmarshal(v, &loc); err != nil {
 					return err
 				}
@@ -41,7 +42,7 @@ func readBoltData(db *bolt.DB, min, max string) (*[]agency.VehicleLocation, erro
 	return &locations, err
 }
 
-func writeData(dest string, locations *[]agency.VehicleLocation) error {
+func writeData(dest string, locations *[]gtfsrt.VehicleLocation) error {
 	log.Printf("Writing %d vehicle locations to %s.\n", len(*locations), dest)
 
 	headers := []string{"vehicle_id", "timestamp", "speed", "route_id", "trip_id", "latitude", "longitude"}

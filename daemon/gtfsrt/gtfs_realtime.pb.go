@@ -22,7 +22,7 @@ It has these top-level messages:
     EntitySelector
     TranslatedString
 */
-package agency
+package gtfsrt
 
 import proto "github.com/scascketta/capmetricsd/Godeps/_workspace/src/github.com/golang/protobuf/proto"
 import math "math"

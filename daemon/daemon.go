@@ -6,61 +6,57 @@ import (
 	"os"
 	"time"
 
-	"github.com/scascketta/capmetricsd/daemon/agency/capmetro"
-	"github.com/scascketta/capmetricsd/daemon/task"
-
 	"github.com/scascketta/capmetricsd/Godeps/_workspace/src/github.com/boltdb/bolt"
-	"github.com/scascketta/capmetricsd/Godeps/_workspace/src/github.com/scascketta/envconfig"
+)
+
+const (
+	LOG_INTERVAL   = 30 * time.Second
+	BUCKET_NAME    = "vehicle_locations"
+	ISO8601_FORMAT = "2006-01-02T15:04:05-07:00"
 )
 
 var (
 	dlog           = log.New(os.Stdout, "[DBG] ", log.LstdFlags|log.Lshortfile)
 	elog           = log.New(os.Stderr, "[ERR] ", log.LstdFlags|log.Lshortfile)
-	cfg            = Config{}
 	cronitorClient = http.Client{Timeout: 10 * time.Second}
 )
 
-type Config struct {
-	CronitorURL string `required:"true"`
-	Retries     int    `required:"true"`
-	DbPath      string `required:"true"`
-}
-
-func setupConn() *bolt.DB {
-	db, err := bolt.Open(cfg.DbPath, 0600, &bolt.Options{Timeout: 5 * time.Second})
+func capture(target, dbPath string) {
+	db, err := bolt.Open(dbPath, 0600, &bolt.Options{Timeout: LOG_INTERVAL})
 	if err != nil {
-		log.Fatal("Fatal error while opening bolt db: ", err)
+		elog.Println("Error opening BoltDB: ", err.Error())
+		return
 	}
-	return db
+	defer db.Close()
+
+	if err = CaptureLocations(target, db); err != nil {
+		elog.Println(err)
+		// if error is returned while recording location, don't notify cronitor
+		return
+	}
 }
 
-func LogVehiclesNotifyCronitor(setupConn func() *bolt.DB, fh *capmetro.FetchHistory) func() error {
-	return func() error {
-		res, err := cronitorClient.Get(cfg.CronitorURL)
-		if err == nil {
-			res.Body.Close()
-		} else {
-			return err
+func notifyCronitor(cronitorURL string) {
+	if cronitorURL != "" {
+		res, err := cronitorClient.Get(cronitorURL)
+		if err != nil {
+			elog.Printf("Error notifying Cronitor: %s\n", err.Error())
+			return
 		}
-		return capmetro.LogVehicleLocations(setupConn, fh)()
+		res.Body.Close()
 	}
 }
 
-func Start() {
-	if err := envconfig.Process("cm", &cfg); err != nil {
-		elog.Fatal(err)
+func Start(target, cronitorURL, dbPath string) {
+	capture(target, dbPath)
+
+	ticker := time.Tick(LOG_INTERVAL)
+
+	for {
+		select {
+		case <-ticker:
+			capture(target, dbPath)
+			notifyCronitor(cronitorURL)
+		}
 	}
-
-	dlog.Println("config:", cfg)
-
-	fh := capmetro.NewFetchHistory()
-
-	locationTask := task.NewDynamicRepeatTask(
-		LogVehiclesNotifyCronitor(setupConn, fh),
-		30*time.Second,
-		"LogVehiclesNotifyCronitor",
-		capmetro.UpdateInterval(cfg.Retries, fh),
-	)
-
-	task.StartTasks(locationTask)
 }

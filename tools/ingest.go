@@ -6,7 +6,8 @@ import (
 	"github.com/scascketta/capmetricsd/Godeps/_workspace/src/github.com/boltdb/bolt"
 	"github.com/scascketta/capmetricsd/Godeps/_workspace/src/github.com/cheggaaa/pb"
 	"github.com/scascketta/capmetricsd/Godeps/_workspace/src/github.com/golang/protobuf/proto"
-	"github.com/scascketta/capmetricsd/daemon/agency"
+	"github.com/scascketta/capmetricsd/daemon"
+	"github.com/scascketta/capmetricsd/daemon/gtfsrt"
 	"io"
 	"log"
 	"os"
@@ -19,7 +20,6 @@ import (
 
 const (
 	Iso8601Format = "2006-01-02T15:04:05-07:00"
-	BucketName    = "vehicle_locations"
 )
 
 func countLines(fname string) (int, error) {
@@ -52,7 +52,7 @@ func countLines(fname string) (int, error) {
 func countBucketKeys(db *bolt.DB) int {
 	count := 0
 	db.Update(func(tx *bolt.Tx) error {
-		bucket, _ := tx.CreateBucketIfNotExists([]byte(BucketName))
+		bucket, _ := tx.CreateBucketIfNotExists([]byte(daemon.BUCKET_NAME))
 
 		cursor := bucket.Cursor()
 		for k, _ := cursor.First(); k != nil; k, _ = cursor.Next() {
@@ -65,7 +65,7 @@ func countBucketKeys(db *bolt.DB) int {
 
 // assumes CSV field names in order
 // vehicle_id,dist_traveled,speed,lon,route_id,trip_headsign,timestamp,lat,trip_id
-func unmarshalCSV(record []string) *agency.VehicleLocation {
+func unmarshalCSV(record []string) *gtfsrt.VehicleLocation {
 	vehicleID, speedStr, lonStr, routeID, timeStr, latStr, tripID := record[0], record[2], record[3], record[4], record[6], record[7], record[8]
 
 	speed, _ := strconv.ParseFloat(speedStr, 32)
@@ -73,7 +73,7 @@ func unmarshalCSV(record []string) *agency.VehicleLocation {
 	lat, _ := strconv.ParseFloat(latStr, 32)
 	timestamp, _ := time.Parse(Iso8601Format, timeStr)
 
-	loc := &agency.VehicleLocation{
+	loc := &gtfsrt.VehicleLocation{
 		VehicleId: proto.String(vehicleID),
 		Timestamp: proto.Int64(timestamp.Unix()),
 		Speed:     proto.Float32(float32(speed)),
@@ -87,7 +87,7 @@ func unmarshalCSV(record []string) *agency.VehicleLocation {
 
 func storeBolt(record []string) func(tx *bolt.Tx) error {
 	return func(tx *bolt.Tx) error {
-		topBucket, err := tx.CreateBucketIfNotExists([]byte(BucketName))
+		topBucket, err := tx.CreateBucketIfNotExists([]byte(daemon.BUCKET_NAME))
 		if err != nil {
 			return err
 		}
@@ -187,7 +187,7 @@ func Ingest(pattern string) {
 
 	checkCount := 0
 	db.View(func(tx *bolt.Tx) error {
-		topBucket := tx.Bucket([]byte(BucketName))
+		topBucket := tx.Bucket([]byte(daemon.BUCKET_NAME))
 		topBucket.ForEach(func(trip, _ []byte) error {
 			tripBucket := topBucket.Bucket(trip)
 			tripBucket.ForEach(func(timestamp, val []byte) error {
