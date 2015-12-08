@@ -21,7 +21,7 @@ var (
 	cronitorClient = http.Client{Timeout: 10 * time.Second}
 )
 
-func capture(target, dbPath string) {
+func captureLocations(target, dbPath, cronitorURL string) {
 	db, err := bolt.Open(dbPath, 0600, &bolt.Options{Timeout: LOG_INTERVAL})
 	if err != nil {
 		elog.Println("Error opening BoltDB: ", err.Error())
@@ -34,6 +34,8 @@ func capture(target, dbPath string) {
 		// if error is returned while recording location, don't notify cronitor
 		return
 	}
+
+	notifyCronitor(cronitorURL)
 }
 
 func notifyCronitor(cronitorURL string) {
@@ -48,16 +50,14 @@ func notifyCronitor(cronitorURL string) {
 }
 
 func Start(target, cronitorURL, dbPath string) {
-	capture(target, dbPath)
-	notifyCronitor(cronitorURL)
+	captureLocations(target, dbPath, cronitorURL)
 
 	ticker := time.Tick(LOG_INTERVAL)
 
 	for {
 		select {
 		case <-ticker:
-			capture(target, dbPath)
-			notifyCronitor(cronitorURL)
+			captureLocations(target, dbPath, cronitorURL)
 		}
 	}
 }

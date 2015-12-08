@@ -14,46 +14,32 @@ import (
 type locationBins map[string][]*gtfsrt.VehicleLocation
 
 func CaptureLocations(url string, db *bolt.DB) (err error) {
-	start := time.Now()
 	pb, err := getLocations(url)
 	if err != nil {
 		return
 	}
-	end := time.Now().Sub(start)
-	dlog.Printf("Time spent downloading PB file: %.0fms\n", end.Seconds()*1000)
 
-	start = time.Now()
 	locations, err := decodeProtobuf(pb)
 	if err != nil {
 		return
 	}
-	end = time.Now().Sub(start)
-	dlog.Printf("Time spent decoding PB file: %.0fms\n", end.Seconds()*1000)
 
 	filtered := filterLocations(locations)
-	describeLocations(filtered)
 
 	tripBins := binLocations(filtered)
 
-	start = time.Now()
 	if err = storeLocations(db, tripBins); err != nil {
 		return
 	}
-	end = time.Now().Sub(start)
 
-	debug(len(locations), len(filtered), len(tripBins), end.Seconds()*1000)
+	describeLocations(filtered)
+	printStats(len(locations), len(filtered), len(tripBins))
 
 	return
 }
 
-func debug(numLocations, numFiltered, numTrips int, elapsed float64) {
-	dlog.Printf("Locations: %d\n", numLocations)
-	dlog.Printf("Valid locations: %d\n", numFiltered)
-	dlog.Printf("Valid trips: %d\n", numTrips)
-	dlog.Printf("Time spent saving locations to BoltDB:  %.0fms\n", elapsed)
-}
-
 func getLocations(url string) (pb []byte, err error) {
+	start := time.Now()
 	pb = []byte{}
 
 	res, err := http.Get(url)
@@ -67,10 +53,13 @@ func getLocations(url string) (pb []byte, err error) {
 	}
 	res.Body.Close()
 
+	end := time.Now().Sub(start)
+	dlog.Printf("Time elapsed downloading PB file: %.0fms\n", end.Seconds()*1000)
 	return
 }
 
 func decodeProtobuf(pb []byte) (locations []*gtfsrt.VehicleLocation, err error) {
+	start := time.Now()
 	fm := new(gtfsrt.FeedMessage)
 	if err = proto.Unmarshal(pb, fm); err != nil {
 		return nil, err
@@ -94,6 +83,9 @@ func decodeProtobuf(pb []byte) (locations []*gtfsrt.VehicleLocation, err error) 
 		locations = append(locations, loc)
 	}
 
+	end := time.Now().Sub(start)
+	dlog.Printf("Time elapsed decoding PB file: %.0fms\n", end.Seconds()*1000)
+
 	return locations, nil
 }
 
@@ -101,7 +93,8 @@ func filterLocations(locations []*gtfsrt.VehicleLocation) []*gtfsrt.VehicleLocat
 	var filtered []*gtfsrt.VehicleLocation
 
 	for _, location := range locations {
-		if location.GetRouteId() != "" && location.GetVehicleId() != "" && location.GetTripId() != "" {
+		active := location.GetRouteId() != "" && location.GetVehicleId() != "" && location.GetTripId() != ""
+		if active {
 			filtered = append(filtered, location)
 		}
 	}
@@ -123,6 +116,10 @@ func binLocations(locations []*gtfsrt.VehicleLocation) locationBins {
 }
 
 func describeLocations(locations []*gtfsrt.VehicleLocation) {
+	if len(locations) == 0 {
+		return
+	}
+
 	var timestamps []float64
 	var speeds []float64
 	for _, location := range locations {
@@ -138,6 +135,7 @@ func describeLocations(locations []*gtfsrt.VehicleLocation) {
 }
 
 func storeLocations(db *bolt.DB, tripBins locationBins) error {
+	start := time.Now()
 	for trip, locations := range tripBins {
 		if trip == "" {
 			continue
@@ -154,6 +152,8 @@ func storeLocations(db *bolt.DB, tripBins locationBins) error {
 		}
 
 	}
+	end := time.Now().Sub(start)
+	dlog.Printf("Time elapsed saving locations to BoltDB:  %.0fms\n", end.Seconds()*1000)
 	return nil
 }
 
@@ -181,4 +181,10 @@ func storeSingleLocation(tripID []byte, location *gtfsrt.VehicleLocation, tx *bo
 		elog.Fatal(err)
 	}
 	return
+}
+
+func printStats(numLocations, numFiltered, numTrips int) {
+	dlog.Printf("Locations: %d\n", numLocations)
+	dlog.Printf("Valid locations: %d\n", numFiltered)
+	dlog.Printf("Valid trips: %d\n", numTrips)
 }
