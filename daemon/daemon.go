@@ -49,6 +49,7 @@ func notifyCronitor(cronitorURL string) {
 
 func Start(target, cronitorURL, dbPath string) {
 	capture(target, dbPath)
+	notifyCronitor(cronitorURL)
 
 	ticker := time.Tick(LOG_INTERVAL)
 

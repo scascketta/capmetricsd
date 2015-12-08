@@ -14,27 +14,32 @@ import (
 type locationBins map[string][]*gtfsrt.VehicleLocation
 
 func CaptureLocations(url string, db *bolt.DB) (err error) {
+	start := time.Now()
 	pb, err := getLocations(url)
 	if err != nil {
 		return
 	}
+	end := time.Now().Sub(start)
+	dlog.Printf("Time spent downloading PB file: %.0fms\n", end.Seconds()*1000)
 
+	start = time.Now()
 	locations, err := decodeProtobuf(pb)
 	if err != nil {
 		return
 	}
-
-	describeLocations(locations)
+	end = time.Now().Sub(start)
+	dlog.Printf("Time spent decoding PB file: %.0fms\n", end.Seconds()*1000)
 
 	filtered := filterLocations(locations)
+	describeLocations(filtered)
 
 	tripBins := binLocations(filtered)
 
-	start := time.Now()
+	start = time.Now()
 	if err = storeLocations(db, tripBins); err != nil {
 		return
 	}
-	end := time.Now().Sub(start)
+	end = time.Now().Sub(start)
 
 	debug(len(locations), len(filtered), len(tripBins), end.Seconds()*1000)
 
