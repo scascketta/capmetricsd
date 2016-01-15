@@ -29,7 +29,7 @@ capmetricsd start -t target-url --db db-path [--cronitor cronitor-url]
 
 This runs forever in the foreground. I recommend using some kind of process supervision service like Systemd, [runit](http://smarden.org/runit/), or [Supervisor](http://supervisord.org/) to keep it running.
 
-**NOTE:** capmetricsd uses an embedded key/value store called [BoltDB](https://github.com/boltdb/bolt), which stores data as a single file on disk. A process using a BoltDB database obtains a file lock when it opens the file, so be aware that you must use a different database for each process running capmetricsd.
+**NOTE:** capmetricsd uses an embedded key/value store called [BoltDB](https://github.com/boltdb/bolt), which stores data as a single file on disk. A process using a BoltDB database obtains a file lock when it opens the file, so be aware that you must designate a different database for each process running capmetricsd.
 
 ### Retrieving Archived Data
 
