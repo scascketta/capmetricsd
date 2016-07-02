@@ -1,7 +1,7 @@
 package tools
 
 import (
-	"github.com/scascketta/capmetricsd/Godeps/_workspace/src/github.com/boltdb/bolt"
+	"github.com/boltdb/bolt"
 	"github.com/scascketta/capmetricsd/daemon"
 	"log"
 	"os"

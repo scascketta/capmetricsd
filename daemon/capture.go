@@ -1,9 +1,9 @@
 package daemon
 
 import (
-	"github.com/scascketta/capmetricsd/Godeps/_workspace/src/github.com/boltdb/bolt"
-	"github.com/scascketta/capmetricsd/Godeps/_workspace/src/github.com/golang/protobuf/proto"
-	"github.com/scascketta/capmetricsd/Godeps/_workspace/src/github.com/montanaflynn/stats"
+	"github.com/boltdb/bolt"
+	"github.com/golang/protobuf/proto"
+	"github.com/montanaflynn/stats"
 	"github.com/scascketta/capmetricsd/daemon/gtfsrt"
 	"io/ioutil"
 	"net/http"

@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/scascketta/capmetricsd/Godeps/_workspace/src/github.com/codegangsta/cli"
+    "github.com/urfave/cli"
 	"github.com/scascketta/capmetricsd/daemon"
 	"github.com/scascketta/capmetricsd/tools"
 	"log"
